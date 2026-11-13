@@ -1,0 +1,21 @@
+#!/bin/bash
+# Fake gh, driven by env vars. Every call is appended to $FAKE_LOG.
+#   FAKE_GH_AUTH=fail        `gh auth status` exits 1
+#   FAKE_GH_EXT_VERSION=...  version `gh extension list` reports; empty = not installed (default v0.3.0)
+#   FAKE_GH_INSTALL=fail     `gh extension install` exits 1
+# A successful install writes $FAKE_STATE/ext-installed, after which the extension is listed at v0.3.0.
+echo "gh $*" >> "$FAKE_LOG"
+case "$1 $2" in
+  "--version "*) echo "gh version 2.80.0"; exit 0 ;;
+  "auth status") [ "$FAKE_GH_AUTH" = "fail" ] && { echo "not logged in" >&2; exit 1; }; exit 0 ;;
+  "extension list")
+    v="${FAKE_GH_EXT_VERSION-v0.3.0}"
+    [ -z "$v" ] && [ -f "$FAKE_STATE/ext-installed" ] && v="v0.3.0"
+    [ -n "$v" ] && printf 'gh stack\tgithub/gh-stack\t%s\n' "$v"
+    exit 0 ;;
+  "extension install")
+    [ "$FAKE_GH_INSTALL" = "fail" ] && { echo "network error" >&2; exit 1; }
+    mkdir -p "$FAKE_STATE" && touch "$FAKE_STATE/ext-installed"; exit 0 ;;
+esac
+echo "fake gh: unhandled: $*" >&2
+exit 2
