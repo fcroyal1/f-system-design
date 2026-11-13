@@ -180,4 +180,23 @@ public class MatchEngineTests
         Assert.Equal("PO line: invoice line 1 is GLV-NIT-M/EA, PO line is GLV-NIT-M/BX", r.BlockReason);
         Assert.Equal(4, r.Checks.Count);
     }
+
+    [Fact]
+    public void Match_QuantityFailsWithUndercharge_AmountFails()
+    {
+        var r = Run(Build(received: 98m, invQty: 100m, invPrice: 9.50m));
+        Assert.Equal("Quantity: billed 2 more than received (line 1)", r.BlockReason);
+        var amount = Check(r, "Amount");
+        Assert.Equal(CheckOutcome.Fail, amount.Outcome);
+        Assert.Equal("fails with the quantity check", amount.Message);
+    }
+
+    [Fact]
+    public void Match_PriceFailsQuantityOk_AmountFails()
+    {
+        var r = Run(Build(poQty: 1m, poPrice: 10.00m, received: 1m, invQty: 1m, invPrice: 10.31m));
+        var amount = Check(r, "Amount");
+        Assert.Equal(CheckOutcome.Fail, amount.Outcome);
+        Assert.Equal("$0.31 more than the value received", amount.Message);
+    }
 }

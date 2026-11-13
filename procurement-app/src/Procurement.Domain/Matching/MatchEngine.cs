@@ -85,16 +85,17 @@ public static class MatchEngine
                 ? $"{pctText}%, inside the ±3% / $50 price tolerance"
                 : $"{pctText}% / ${abs.ToString("0.00", Inv)} over the ±3% / $50 price tolerance"));
 
-        // Amount: value available = min(invQty, available) * PO price. Price variance already
-        // accepted by the Unit price check is not counted against the amount.
+        // Amount fails exactly when the line's quantity or price check fails.
         var availableValue = Math.Min(inv.Quantity, available) * po.UnitPrice;
         var invAmount = inv.Quantity * inv.UnitPrice;
         var excess = invAmount - availableValue;
-        var allowance = priceOk ? Math.Max(0m, abs) : 0m;
-        var amountOk = excess <= allowance;
+        var amountOk = qtyOk && priceOk;
+        var amountMessage = amountOk ? "matches the value received"
+            : excess > 0m ? $"${Money(excess)} more than the value received"
+            : !qtyOk ? "fails with the quantity check"
+            : "fails with the unit price check";
         checks.Add(new("Amount", inv.LineNo, Money(po.Quantity * po.UnitPrice), Money(availableValue), Money(invAmount),
-            amountOk ? CheckOutcome.Pass : CheckOutcome.Fail,
-            amountOk ? "matches the value received" : $"${Money(excess)} more than the value received"));
+            amountOk ? CheckOutcome.Pass : CheckOutcome.Fail, amountMessage));
     }
 
     private static string Qty(decimal v) => v.ToString("0.###", Inv);
