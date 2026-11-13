@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Procurement.TestSupport</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2" />
+    <PackageReference Include="Microsoft.SqlServer.DacFx" Version="170.5.96" />
+    <PackageReference Include="Testcontainers.MsSql" Version="4.16.0" />
+    <PackageReference Include="xunit.v3.extensibility.core" Version="4.0.3" />
+    <PackageReference Include="xunit.v3.assert" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Build the dacpac first; it is not an assembly, so only the .dacpac file is taken. -->
+    <ProjectReference Include="..\..\db\Procurement.Database\Procurement.Database.sqlproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true" />
+    <None Include="..\..\db\Procurement.Database\bin\$(Configuration)\Procurement.Database.dacpac"
+          Link="Procurement.Database.dacpac"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>

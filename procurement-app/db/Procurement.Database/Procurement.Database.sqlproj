@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.Build.Sql/2.3.0">
+
+  <PropertyGroup>
+    <Name>Procurement.Database</Name>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql170DatabaseSchemaProvider</DSP>
+    <ModelCollation>1033, CI</ModelCollation>
+    <DefaultCollation>SQL_Latin1_General_CP1_CI_AS</DefaultCollation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PostDeploy Include="Scripts\Script.PostDeployment.sql" />
+    <!-- Seed scripts are pulled into the post-deployment script with :r, not compiled into the model. -->
+    <Build Remove="Scripts\**\*.sql" />
+    <None Include="Scripts\Seed.*.sql" />
+  </ItemGroup>
+
+</Project>
