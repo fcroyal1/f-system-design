@@ -11,6 +11,10 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
     private const decimal MaxQuantity = 999_999_999_999_999.999m;
     private const decimal MaxUnitPrice = 99_999_999_999_999.9999m;
 
+    // Line amounts and the PO total must fit decimal(18,2); larger products of the column maxima
+    // would also overflow C# decimal when read back, breaking every PO read.
+    private const decimal MaxAmount = 9_999_999_999_999_999.99m;
+
     public async Task<PurchaseOrderDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         var rows = await store.GetAsync(id, cancellationToken)
@@ -104,6 +108,19 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
         }
 
         var newLines = lines.Select((line, index) => ValidateLine(line, index + 1)).ToList();
+
+        // Each line amount is at most MaxAmount, so the running sum cannot overflow decimal.
+        var total = 0m;
+        foreach (var line in newLines)
+        {
+            total += line.Quantity * line.UnitPrice;
+            if (total > MaxAmount)
+            {
+                throw new ValidationProblemException(
+                    $"The purchase order total exceeds the maximum of {MaxAmount.ToString(CultureInfo.InvariantCulture)}.");
+            }
+        }
+
         return new NewPurchaseOrder(
             Guid.NewGuid(), supplierId, requesterName, costCenterCode, currency, poDate.ToDateTime(TimeOnly.MinValue), newLines);
     }
@@ -160,6 +177,13 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
         if (unitPrice > MaxUnitPrice || HasMoreDecimals(unitPrice, 4))
         {
             throw new ValidationProblemException($"Line {lineNo}: unitPrice must have at most 4 decimal places and 14 digits before the point.");
+        }
+
+        // Compare against MaxAmount / unitPrice so the multiplication itself can never overflow.
+        if (unitPrice > 0 && quantity > MaxAmount / unitPrice)
+        {
+            throw new ValidationProblemException(
+                $"Line {lineNo}: amount exceeds the maximum of {MaxAmount.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         return new NewPoLine(lineNo, itemCode, description, uom, quantity, unitPrice, glAccount, line.ReceiptRequired ?? true);

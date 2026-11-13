@@ -132,4 +132,20 @@ public sealed class SupplierEndpointTests(ApiFactory api) : IClassFixture<ApiFac
         var detail = await response.ProblemAsync(HttpStatusCode.BadRequest);
         Assert.Contains("legalName", detail);
     }
+
+    [Fact]
+    public async Task Supplier_Create_NegativeTerms_Returns400()
+    {
+        SkipIfNoDocker.Check();
+
+        var response = await api.CreateClient().PostJsonAsync("/api/suppliers", new
+        {
+            code = "V-20003",
+            legalName = "Negative Terms Ltd",
+            categoryCode = "OFFICE",
+            paymentTermsDays = -1,
+        });
+
+        Assert.Equal("paymentTermsDays must be 0 or more.", await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
 }

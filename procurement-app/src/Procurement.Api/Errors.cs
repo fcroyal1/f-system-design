@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,8 +38,7 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
         var (status, title, detail) = exception switch
         {
             ApiProblemException p => (p.StatusCode, p.Title, p.Message),
-            BadHttpRequestException b => (b.StatusCode, "Invalid request",
-                $"The request could not be read: {b.Message} Check the JSON body and its field types."),
+            BadHttpRequestException b => (b.StatusCode, "Invalid request", Describe(b)),
             _ => (0, "", ""),
         };
 
@@ -55,4 +55,14 @@ public sealed class ProblemExceptionHandler(IProblemDetailsService problemDetail
             ProblemDetails = new ProblemDetails { Status = status, Title = title, Detail = detail },
         });
     }
+
+    private static string Describe(BadHttpRequestException exception) => exception.InnerException switch
+    {
+        JsonException { Path: { Length: > 0 } path } =>
+            $"The JSON body has an invalid value at {path}. Check that field's type and format.",
+        JsonException => "The request body is not valid JSON.",
+        _ when exception.Message.Contains("body", StringComparison.OrdinalIgnoreCase) =>
+            "A JSON request body is required.",
+        _ => $"The request could not be read: {exception.Message}",
+    };
 }

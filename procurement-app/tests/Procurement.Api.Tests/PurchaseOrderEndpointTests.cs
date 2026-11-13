@@ -159,4 +159,85 @@ public sealed class PurchaseOrderEndpointTests(SqlServerFixture sql, ApiFactory 
 
         await (await client.PostJsonAsync($"/api/purchase-orders/{id}/approve")).ProblemAsync(HttpStatusCode.NotFound);
     }
+
+    private const decimal MaxQuantity = 999_999_999_999_999.999m;
+    private const decimal MaxUnitPrice = 99_999_999_999_999.9999m;
+
+    private static object PoBody(decimal quantity, decimal unitPrice, string glAccount = "6110", int lineCount = 1) => new
+    {
+        supplierId = Bluepeak,
+        requesterName = "Harborview Clinics – Supply room",
+        costCenterCode = "CC-200",
+        currency = "USD",
+        poDate = "2026-11-13",
+        lines = Enumerable.Range(0, lineCount).Select(_ => new
+        {
+            itemCode = "GLV-NIT-M",
+            description = "Nitrile exam gloves, medium, box of 100",
+            uom = "BX",
+            quantity,
+            unitPrice,
+            glAccount,
+            receiptRequired = true,
+        }).ToArray(),
+    };
+
+    public static TheoryData<string, decimal, decimal, string, int, string> InvalidBodies => new()
+    {
+        { "zero quantity", 0m, 10m, "6110", 1, "Line 1: quantity must be greater than 0." },
+        { "negative unit price", 1m, -0.01m, "6110", 1, "Line 1: unitPrice must be 0 or more." },
+        { "unknown GL account", 1m, 10m, "9999", 1, "Line 1: glAccount '9999' is not a known GL account." },
+        { "oversize line", MaxQuantity, MaxUnitPrice, "6110", 1, "Line 1: amount exceeds the maximum of 9999999999999999.99." },
+        { "oversize total", 1_000_000_000m, 6_000_000m, "6110", 2, "The purchase order total exceeds the maximum of 9999999999999999.99." },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidBodies))]
+    public async Task Po_Create_InvalidBody_Returns400(string _, decimal quantity, decimal unitPrice, string glAccount, int lineCount, string expected)
+    {
+        SkipIfNoDocker.Check();
+
+        var response = await api.CreateClient().PostJsonAsync("/api/purchase-orders", PoBody(quantity, unitPrice, glAccount, lineCount));
+
+        Assert.Equal(expected, await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
+
+    [Fact]
+    public async Task Po_Create_MalformedJson_Returns400()
+    {
+        SkipIfNoDocker.Check();
+        using var content = new StringContent("""{ "supplierId": "a1b2c3d4-0001-4000-8000-000000010442", "poDate": "13/11/2026" }""",
+            System.Text.Encoding.UTF8, "application/json");
+
+        var response = await api.CreateClient().PostAsync("/api/purchase-orders", content, Http.Ct);
+
+        Assert.Contains("$.poDate", await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
+
+    [Fact]
+    public async Task Po_Create_MissingBody_Returns400()
+    {
+        SkipIfNoDocker.Check();
+        using var content = new StringContent("", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await api.CreateClient().PostAsync("/api/purchase-orders", content, Http.Ct);
+
+        Assert.Equal("A JSON request body is required.", await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
+
+    [Fact]
+    public async Task Po_List_StillOk_AfterOversizeRejected()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+
+        var rejected = await client.PostJsonAsync("/api/purchase-orders", PoBody(MaxQuantity, MaxUnitPrice));
+        await rejected.ProblemAsync(HttpStatusCode.BadRequest);
+
+        var list = await client.GetJsonAsync("/api/purchase-orders");
+        Assert.DoesNotContain(list.EnumerateArray(), p => p.GetProperty("total").GetDecimal() > 9_999_999_999_999_999.99m);
+        await using var db = await api.OpenDbAsync();
+        Assert.Equal(0, await db.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.po_line WHERE quantity = @MaxQuantity;", new { MaxQuantity }));
+    }
 }
