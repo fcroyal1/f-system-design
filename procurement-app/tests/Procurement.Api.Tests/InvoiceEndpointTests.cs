@@ -258,4 +258,33 @@ public sealed class InvoiceEndpointTests(SqlServerFixture sql, ApiFactory api) :
         Assert.Equal("Bluepeak Medical Supply", invoice.GetProperty("supplierName").GetString());
         Assert.Equal("2026-12-10", invoice.GetProperty("dueDate").GetString()); // Bluepeak terms: 30 days
     }
+
+    [Fact]
+    public async Task Invoice_TwoLinesSamePoLine_OverReceived_Blocked()
+    {
+        SkipIfNoDocker.Check();
+        // Its own database: other tests in this class add Matched invoices against PO 4500123.
+        await using var fresh = new ApiFactory(sql);
+        await fresh.InitializeAsync();
+        var client = fresh.CreateClient();
+
+        // PO 4500123 line 1: 100 @ 10.00 ordered, 98 received, nothing Matched yet.
+        var invoice = await CreateInvoiceAsync(client, new
+        {
+            supplierId = Bluepeak,
+            invoiceNumber = "INV-91001",
+            invoiceDate = "2026-11-10",
+            currency = "USD",
+            poNumber = "4500123",
+            taxAmount = 0m,
+            lines = new[]
+            {
+                new { poLineNo = 1, itemCode = "GLV-NIT-M", uom = "BX", description = "First half", quantity = 98m, unitPrice = 10.00m },
+                new { poLineNo = 1, itemCode = "GLV-NIT-M", uom = "BX", description = "Billed again", quantity = 98m, unitPrice = 10.00m },
+            },
+        });
+
+        Assert.Equal("Blocked", invoice.GetProperty("status").GetString());
+        Assert.Equal("Quantity: billed 98 more than received (line 2)", invoice.GetProperty("blockReason").GetString());
+    }
 }
