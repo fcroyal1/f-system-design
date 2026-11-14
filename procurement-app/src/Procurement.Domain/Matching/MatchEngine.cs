@@ -27,13 +27,17 @@ public static class MatchEngine
             approved ? CheckOutcome.Pass : CheckOutcome.Fail,
             approved ? "PO is approved" : $"PO is {input.PoStatus}, not approved"));
 
+        // Quantity already billed on each PO line by earlier lines of this invoice, so that lines
+        // sharing a PO line count cumulatively (a split line is fine; billing it twice is not).
+        var consumedByLine = new Dictionary<int, decimal>();
         foreach (var inv in input.InvoiceLines)
-            AddLineChecks(checks, input, inv, tolerance);
+            AddLineChecks(checks, input, inv, tolerance, consumedByLine);
 
         return new MatchResult(checks);
     }
 
-    private static void AddLineChecks(List<MatchCheck> checks, MatchInput input, InvoiceLine inv, Tolerance tol)
+    private static void AddLineChecks(List<MatchCheck> checks, MatchInput input, InvoiceLine inv, Tolerance tol,
+        Dictionary<int, decimal> consumedByLine)
     {
         var po = inv.PoLineNo is { } n ? input.PoLines.FirstOrDefault(l => l.LineNo == n) : null;
         var invKey = $"{inv.ItemCode}/{inv.Uom}";
@@ -62,7 +66,9 @@ public static class MatchEngine
         var previouslyInvoiced = input.PreviouslyInvoicedQtyByLine.GetValueOrDefault(po.LineNo);
         var basis = po.ReceiptRequired ? received : po.Quantity;
         var basisWord = po.ReceiptRequired ? "received" : "ordered";
-        var available = Math.Max(0m, basis - previouslyInvoiced);
+        var consumed = consumedByLine.GetValueOrDefault(po.LineNo);
+        consumedByLine[po.LineNo] = consumed + inv.Quantity;
+        var available = Math.Max(0m, basis - previouslyInvoiced - consumed);
         var allowed = available * (1m + tol.QuantityPct / 100m);
         var qtyOk = inv.Quantity <= allowed;
         var over = inv.Quantity - available;
@@ -70,7 +76,7 @@ public static class MatchEngine
             Qty(inv.Quantity), qtyOk ? CheckOutcome.Pass : CheckOutcome.Fail,
             qtyOk
                 ? $"within the quantity {basisWord} (line {inv.LineNo})"
-                : $"billed {over.ToString("0.##", Inv)} more than {basisWord} (line {inv.LineNo})"));
+                : $"billed {over.ToString("0.###", Inv)} more than {basisWord} (line {inv.LineNo})"));
 
         // Unit price: pct = (inv - po) / po * 100; abs = (inv - po) * invQty. Undercharges pass.
         var diff = inv.UnitPrice - po.UnitPrice;

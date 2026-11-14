@@ -45,6 +45,9 @@ public sealed class SupplierStore(Db db)
             SelectSupplier + " WHERE s.id = @id;", new { id }, cancellationToken: cancellationToken));
     }
 
+    public static Task<SupplierRow?> FindAsync(SqlConnection connection, SqlTransaction transaction, Guid id) =>
+        connection.QuerySingleOrDefaultAsync<SupplierRow>(SelectSupplier + " WHERE s.id = @id;", new { id }, transaction);
+
     public static Task<bool> CodeExistsAsync(SqlConnection connection, SqlTransaction transaction, string code) =>
         connection.ExecuteScalarAsync<bool>(
             "SELECT CAST(COUNT(*) AS bit) FROM dbo.supplier WITH (UPDLOCK, HOLDLOCK) WHERE code = @code;",

@@ -1,0 +1,8 @@
+# Keep host build output, dependencies and secrets out of the image build context.
+**/bin/
+**/obj/
+web/node_modules/
+web/dist/
+web/.angular/
+.env
+tests/

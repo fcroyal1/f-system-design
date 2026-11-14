@@ -199,4 +199,42 @@ public class MatchEngineTests
         Assert.Equal(CheckOutcome.Fail, amount.Outcome);
         Assert.Equal("$0.31 more than the value received", amount.Message);
     }
+
+    private static MatchInput TwoLinesOnPoLine1(decimal firstQty, decimal secondQty, decimal received = 98m) => new(
+        true, "USD", "USD", PoStatus.Approved,
+        [new PoLine(1, "GLV-NIT-M", "BX", 100m, 10.00m, true)],
+        new Dictionary<int, decimal> { [1] = received },
+        new Dictionary<int, decimal>(),
+        [
+            new InvoiceLine(1, 1, "GLV-NIT-M", "BX", firstQty, 10.00m),
+            new InvoiceLine(2, 1, "GLV-NIT-M", "BX", secondQty, 10.00m),
+        ]);
+
+    [Fact]
+    public void Match_SameInvoiceTwoLinesSamePoLine_CountsCumulatively()
+    {
+        var r = Run(TwoLinesOnPoLine1(98m, 98m));
+        Assert.False(r.Passed);
+        Assert.Equal("Quantity: billed 98 more than received (line 2)", r.BlockReason);
+        Assert.Equal(CheckOutcome.Pass, r.Checks.Single(c => c.Name == "Quantity" && c.LineNo == 1).Outcome);
+        var amount2 = r.Checks.Single(c => c.Name == "Amount" && c.LineNo == 2);
+        Assert.Equal(CheckOutcome.Fail, amount2.Outcome);
+        Assert.Equal("0.00", amount2.ReceiptValue);
+    }
+
+    [Fact]
+    public void Match_SameInvoiceSplitLineWithinReceived_Passes()
+    {
+        var r = Run(TwoLinesOnPoLine1(50m, 48m));
+        Assert.True(r.Passed);
+        Assert.Equal("500.00", r.Checks.Single(c => c.Name == "Amount" && c.LineNo == 1).ReceiptValue);
+        Assert.Equal("480.00", r.Checks.Single(c => c.Name == "Amount" && c.LineNo == 2).ReceiptValue);
+    }
+
+    [Fact]
+    public void Match_FractionalOverbill_ShowsThreeDecimals()
+    {
+        var r = Run(Build(received: 100m, invQty: 100.004m, invPrice: 10.00m));
+        Assert.Equal("Quantity: billed 0.004 more than received (line 1)", r.BlockReason);
+    }
 }

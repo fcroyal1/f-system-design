@@ -1,0 +1,64 @@
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1.25rem 0.75rem;
+}
+
+.brand {
+  display: block;
+  padding: 0 0.75rem 1.25rem;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav a {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+nav a:hover {
+  background: #334155;
+  color: #fff;
+}
+
+nav a.active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.content {
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .content {
+    padding: 1rem;
+  }
+}

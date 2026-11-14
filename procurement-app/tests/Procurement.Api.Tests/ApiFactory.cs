@@ -14,6 +14,10 @@ namespace Procurement.Api.Tests;
 /// </summary>
 public sealed class ApiFactory(SqlServerFixture sql) : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    // Test classes run in parallel, and concurrent CREATE DATABASE statements on one server fail
+    // with "Msg 1807: Could not obtain exclusive lock on database 'model'", so publish one at a time.
+    private static readonly SemaphoreSlim PublishGate = new(1, 1);
+
     private string? _connectionString;
 
     public string ConnectionString =>
@@ -24,7 +28,15 @@ public sealed class ApiFactory(SqlServerFixture sql) : WebApplicationFactory<Pro
         // Without Docker the tests skip themselves (SkipIfNoDocker.Check); the fixture must not fail.
         if (SkipIfNoDocker.IsDockerAvailable)
         {
-            _connectionString = await sql.CreateDatabaseAsync();
+            await PublishGate.WaitAsync();
+            try
+            {
+                _connectionString = await sql.CreateDatabaseAsync();
+            }
+            finally
+            {
+                PublishGate.Release();
+            }
         }
     }
 

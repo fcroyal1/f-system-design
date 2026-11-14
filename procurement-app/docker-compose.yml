@@ -1,0 +1,71 @@
+# Procurement app: SQL Server -> dacpac deploy -> API (internal) -> BFF + Angular on http://localhost:5300.
+# Secrets come from .env (cp .env.example .env).
+name: procurement
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04
+    platform: linux/amd64 # amd64-only image; runs under Rosetta on Apple Silicon
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env (cp .env.example .env)}
+    ports:
+      - "127.0.0.1:14330:1433" # localhost only: sa must not be reachable from the LAN
+    volumes:
+      - procurement-sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\""]
+      interval: 10s
+      retries: 20
+      start_period: 60s
+
+  db-deploy:
+    build:
+      context: .
+      dockerfile: docker/db-deploy.Dockerfile
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env (cp .env.example .env)}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      ConnectionStrings__Procurement: "Server=sqlserver,1433;Database=procurement;User ID=sa;Password=${SA_PASSWORD:?Set SA_PASSWORD in .env (cp .env.example .env)};TrustServerCertificate=True"
+      Actor__Name: "Demo User"
+    # No ports: the API is reachable only inside the compose network (the BFF calls http://api:8080).
+    depends_on:
+      db-deploy:
+        condition: service_completed_successfully
+    healthcheck:
+      # The aspnet image has no curl, so speak HTTP over bash's /dev/tcp. /api/kpis also proves the database is reachable.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /api/kpis HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  bff:
+    build:
+      context: .
+      dockerfile: docker/bff.Dockerfile
+    environment:
+      Api__BaseUrl: "http://api:8080"
+    ports:
+      - "127.0.0.1:5300:8080" # localhost only
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET / HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  procurement-sqldata:
