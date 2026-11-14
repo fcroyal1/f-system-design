@@ -2,6 +2,8 @@
 # End-to-end smoke test: builds and starts the whole stack with docker compose, walks the guide example
 # (INV-77812 blocked on quantity -> receive the last 2 boxes on PO 4500123 -> Matched) through the BFF,
 # then tears everything down, volumes included. Prints "SMOKE PASS" and exits 0 on success.
+# WARNING: this resets the local stack. It runs `docker compose down -v` before starting and again on exit,
+# which DELETES the procurement-sqldata volume (your local database), so every run starts from the seed.
 # Bash 3.2 compatible (macOS default shell).
 set -euo pipefail
 
@@ -64,6 +66,9 @@ expect() { # expect <label> <actual> <expected>
 [ -f docker-compose.yml ] || fail "docker-compose.yml not found in $(pwd)"
 
 trap cleanup EXIT
+
+echo "--- resetting the stack: docker compose down -v (deletes the local procurement database volume)"
+docker compose down -v --remove-orphans >/dev/null 2>&1 || true
 
 echo "--- docker compose up -d --build --wait"
 docker compose up -d --build --wait || fail "docker compose up did not reach a healthy state"

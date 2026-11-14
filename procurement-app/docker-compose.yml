@@ -10,7 +10,7 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in .env (cp .env.example .env)}
     ports:
-      - "14330:1433"
+      - "127.0.0.1:14330:1433" # localhost only: sa must not be reachable from the LAN
     volumes:
       - procurement-sqldata:/var/opt/mssql
     healthcheck:
@@ -56,7 +56,7 @@ services:
     environment:
       Api__BaseUrl: "http://api:8080"
     ports:
-      - "5300:8080"
+      - "127.0.0.1:5300:8080" # localhost only
     depends_on:
       api:
         condition: service_healthy

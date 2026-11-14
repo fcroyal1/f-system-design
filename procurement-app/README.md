@@ -19,14 +19,22 @@ browser ──► BFF + Angular (:5300) ──► API (internal :8080) ──►
 
 ```bash
 cd procurement-app
-cp .env.example .env          # holds SA_PASSWORD; .env is git-ignored, change the value if you like
+cp .env.example .env          # holds SA_PASSWORD; .env is git-ignored
+# edit .env and set your own SA_PASSWORD now, before the first `up` (see below)
 docker compose up --build
 ```
+
+**Choose `SA_PASSWORD` before the first start.** SQL Server only applies it when the database volume is
+first created. It must be at least 8 characters and use 3 of the 4 classes: upper case, lower case, digits,
+symbols. Do not use `;`, `"` or `$`: they break the connection strings and compose variable interpolation.
+To change it later you must run `docker compose down -v`, which **deletes the database** (it is re-seeded on
+the next `up`).
 
 Open <http://localhost:5300> once the `bff` container is healthy.
 
 Start-up order: `sqlserver` becomes healthy → `db-deploy` builds the dacpac and publishes it with
-sqlpackage (schema plus demo seed), then exits → `api` starts → `bff` starts. SQL Server is published on
+sqlpackage (schema plus demo seed), then exits → `api` starts → `bff` starts. Both host ports are bound to
+`127.0.0.1` only, so nothing is reachable from your network. SQL Server is published on
 `localhost:14330` (user `sa`, password from `.env`) if you want to look at the data; the API has no host port.
 
 Stop with `Ctrl+C`, then `docker compose down` (add `-v` to delete the database volume and start fresh).
@@ -47,7 +55,7 @@ The seed contains the worked example: Bluepeak Medical Supply's invoice **INV-77
 3. The receipt re-matches every Blocked invoice on the PO: INV-77812 is now **Matched** and the
    dashboard shows 0 open exceptions.
 
-`tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below).
+`tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below; it resets the database).
 
 ## Tests
 
@@ -60,8 +68,9 @@ cd web && npm ci && npx ng test --watch=false     # Angular unit tests (Vitest)
 The database and API tests start their own SQL Server with Testcontainers and publish the dacpac into it;
 without Docker they are skipped with a clear message.
 
-End-to-end smoke test (builds the images, runs the guide example through the BFF, then
-`docker compose down -v`; needs `.env`, `curl`, and `jq` or `python3`):
+End-to-end smoke test (builds the images, runs the guide example through the BFF; needs `.env`, `curl`,
+and `jq` or `python3`). **It deletes your local database:** it runs `docker compose down -v` before starting
+(so it always begins from the seed) and again when it finishes, removing the `procurement-sqldata` volume.
 
 ```bash
 bash tools/smoke.sh                               # prints SMOKE PASS
