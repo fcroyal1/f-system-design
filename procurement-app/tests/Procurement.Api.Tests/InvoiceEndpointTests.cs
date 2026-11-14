@@ -287,4 +287,23 @@ public sealed class InvoiceEndpointTests(SqlServerFixture sql, ApiFactory api) :
         Assert.Equal("Blocked", invoice.GetProperty("status").GetString());
         Assert.Equal("Quantity: billed 98 more than received (line 2)", invoice.GetProperty("blockReason").GetString());
     }
+
+    [Fact]
+    public async Task Invoice_LowercaseItemAndUom_Matches()
+    {
+        SkipIfNoDocker.Check();
+        // Its own database: PO 4500123 has 98 received and nothing Matched yet. (PO 4500118 is
+        // already fully invoiced by the seeded NL-2231, so a second invoice there would block.)
+        await using var fresh = new ApiFactory(sql);
+        await fresh.InitializeAsync();
+        var client = fresh.CreateClient();
+
+        var invoice = await CreateInvoiceAsync(client,
+            InvoiceBody(Bluepeak, "INV-91002", "4500123", 98m, 10.00m, itemCode: " glv-nit-m ", uom: "bx"));
+
+        Assert.Equal("Matched", invoice.GetProperty("status").GetString());
+        var line = Assert.Single(invoice.GetProperty("lines").EnumerateArray());
+        Assert.Equal("GLV-NIT-M", line.GetProperty("itemCode").GetString());
+        Assert.Equal("BX", line.GetProperty("uom").GetString());
+    }
 }

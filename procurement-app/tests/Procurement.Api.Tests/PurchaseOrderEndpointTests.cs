@@ -9,7 +9,8 @@ public sealed class PurchaseOrderEndpointTests(SqlServerFixture sql, ApiFactory 
 {
     private static readonly Guid Bluepeak = Guid.Parse("a1b2c3d4-0001-4000-8000-000000010442");
 
-    private static async Task<JsonElement> CreatePoAsync(HttpClient client, decimal quantity, decimal unitPrice)
+    private static async Task<JsonElement> CreatePoAsync(
+        HttpClient client, decimal quantity, decimal unitPrice, string itemCode = "GLV-NIT-M", string uom = "BX")
     {
         var response = await client.PostJsonAsync("/api/purchase-orders", new
         {
@@ -22,9 +23,9 @@ public sealed class PurchaseOrderEndpointTests(SqlServerFixture sql, ApiFactory 
             {
                 new
                 {
-                    itemCode = "GLV-NIT-M",
+                    itemCode,
                     description = "Nitrile exam gloves, medium, box of 100",
-                    uom = "BX",
+                    uom,
                     quantity,
                     unitPrice,
                     glAccount = "6110",
@@ -239,5 +240,41 @@ public sealed class PurchaseOrderEndpointTests(SqlServerFixture sql, ApiFactory 
         await using var db = await api.OpenDbAsync();
         Assert.Equal(0, await db.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM dbo.po_line WHERE quantity = @MaxQuantity;", new { MaxQuantity }));
+    }
+
+    [Fact]
+    public async Task Po_Create_LowercaseItemAndUom_StoredUppercase()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+
+        var po = await CreatePoAsync(client, 10m, 10m, itemCode: " glv-nit-m ", uom: "bx");
+        var id = po.GetProperty("id").GetGuid();
+
+        var line = Assert.Single(po.GetProperty("lines").EnumerateArray());
+        Assert.Equal("GLV-NIT-M", line.GetProperty("itemCode").GetString());
+        Assert.Equal("BX", line.GetProperty("uom").GetString());
+        await using var db = await api.OpenDbAsync();
+        var stored = await db.QuerySingleAsync<(string ItemCode, string Uom)>(
+            "SELECT item_code, uom FROM dbo.po_line WHERE po_id = @id AND line_no = 1;", new { id });
+        Assert.Equal(("GLV-NIT-M", "BX"), stored);
+    }
+
+    [Fact]
+    public async Task Po_Approve_ApprovedAtIsUtc()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+
+        var po = await CreatePoAsync(client, 10m, 10m);
+        var id = po.GetProperty("id").GetGuid();
+        var response = await client.PostJsonAsync($"/api/purchase-orders/{id}/approve");
+        await response.AssertStatusAsync(HttpStatusCode.OK);
+
+        var approvedAt = (await response.JsonAsync()).GetProperty("approvedAt").GetString();
+        Assert.NotNull(approvedAt);
+        Assert.True(approvedAt.EndsWith('Z') || approvedAt.EndsWith("+00:00"), $"approvedAt '{approvedAt}' has no UTC marker");
+        var fetched = (await client.GetJsonAsync($"/api/purchase-orders/{id}")).GetProperty("approvedAt").GetString();
+        Assert.Equal(approvedAt, fetched);
     }
 }

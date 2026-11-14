@@ -122,9 +122,9 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
             }
         }
 
-        var itemCode = Field(line.ItemCode, "itemCode", 40);
+        var itemCode = Field(line.ItemCode, "itemCode", 40).ToUpperInvariant();
         var description = Field(line.Description, "description", 200);
-        var uom = Field(line.Uom, "uom", 10);
+        var uom = Field(line.Uom, "uom", 10).ToUpperInvariant();
         var glAccount = Field(line.GlAccount, "glAccount", 10);
 
         var prefix = $"Line {lineNo}";

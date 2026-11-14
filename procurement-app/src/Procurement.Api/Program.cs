@@ -7,6 +7,8 @@ using Procurement.Api.Features.Receipts;
 using Procurement.Api.Features.Reference;
 using Procurement.Api.Features.Suppliers;
 
+UtcDateTimeHandler.Register();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>

@@ -249,8 +249,8 @@ public sealed class InvoiceService(Db db, InvoiceStore store, AuditLog audit)
             }
         }
 
-        var itemCode = Field(line.ItemCode, "itemCode", 40);
-        var uom = Field(line.Uom, "uom", 10);
+        var itemCode = Field(line.ItemCode, "itemCode", 40).ToUpperInvariant();
+        var uom = Field(line.Uom, "uom", 10).ToUpperInvariant();
         var description = Field(line.Description, "description", 200);
         var quantity = Limits.Quantity(line.Quantity, prefix);
         var unitPrice = Limits.UnitPrice(line.UnitPrice, prefix);
