@@ -1,6 +1,9 @@
 using Procurement.Api;
 using Procurement.Api.Data;
+using Procurement.Api.Features.Invoices;
+using Procurement.Api.Features.Kpis;
 using Procurement.Api.Features.PurchaseOrders;
+using Procurement.Api.Features.Receipts;
 using Procurement.Api.Features.Reference;
 using Procurement.Api.Features.Suppliers;
 
@@ -24,8 +27,11 @@ builder.Services.AddSingleton<AuditLog>();
 builder.Services.AddSingleton<ReferenceStore>();
 builder.Services.AddSingleton<SupplierStore>();
 builder.Services.AddSingleton<PurchaseOrderStore>();
+builder.Services.AddSingleton<InvoiceStore>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<PurchaseOrderService>();
+builder.Services.AddScoped<InvoiceService>();
+builder.Services.AddScoped<ReceiptService>();
 
 var app = builder.Build();
 
@@ -35,6 +41,9 @@ app.UseStatusCodePages();
 app.MapReferenceEndpoints();
 app.MapSupplierEndpoints();
 app.MapPurchaseOrderEndpoints();
+app.MapReceiptEndpoints();
+app.MapInvoiceEndpoints();
+app.MapKpiEndpoints();
 
 app.Run();
 

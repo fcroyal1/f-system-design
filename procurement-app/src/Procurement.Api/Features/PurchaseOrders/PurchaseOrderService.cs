@@ -7,14 +7,6 @@ namespace Procurement.Api.Features.PurchaseOrders;
 
 public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditLog audit, Actor actor)
 {
-    // Column limits: quantity decimal(18,3), unit_price decimal(18,4).
-    private const decimal MaxQuantity = 999_999_999_999_999.999m;
-    private const decimal MaxUnitPrice = 99_999_999_999_999.9999m;
-
-    // Line amounts and the PO total must fit decimal(18,2); larger products of the column maxima
-    // would also overflow C# decimal when read back, breaking every PO read.
-    private const decimal MaxAmount = 9_999_999_999_999_999.99m;
-
     public async Task<PurchaseOrderDto> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         var rows = await store.GetAsync(id, cancellationToken)
@@ -91,11 +83,7 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
 
         var requesterName = Required(request.RequesterName, "requesterName", 100);
         var costCenterCode = Required(request.CostCenterCode, "costCenterCode", 20);
-        var currency = Required(request.Currency, "currency", 3).ToUpperInvariant();
-        if (currency.Length != 3 || !currency.All(char.IsAsciiLetterUpper))
-        {
-            throw new ValidationProblemException("currency must be a 3-letter ISO code such as USD.");
-        }
+        var currency = Currency(request.Currency);
 
         if (request.PoDate is not { } poDate)
         {
@@ -109,17 +97,7 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
 
         var newLines = lines.Select((line, index) => ValidateLine(line, index + 1)).ToList();
 
-        // Each line amount is at most MaxAmount, so the running sum cannot overflow decimal.
-        var total = 0m;
-        foreach (var line in newLines)
-        {
-            total += line.Quantity * line.UnitPrice;
-            if (total > MaxAmount)
-            {
-                throw new ValidationProblemException(
-                    $"The purchase order total exceeds the maximum of {MaxAmount.ToString(CultureInfo.InvariantCulture)}.");
-            }
-        }
+        Limits.Total(newLines.Select(l => l.Quantity * l.UnitPrice), "purchase order");
 
         return new NewPurchaseOrder(
             Guid.NewGuid(), supplierId, requesterName, costCenterCode, currency, poDate.ToDateTime(TimeOnly.MinValue), newLines);
@@ -149,45 +127,11 @@ public sealed class PurchaseOrderService(Db db, PurchaseOrderStore store, AuditL
         var uom = Field(line.Uom, "uom", 10);
         var glAccount = Field(line.GlAccount, "glAccount", 10);
 
-        if (line.Quantity is not { } quantity)
-        {
-            throw new ValidationProblemException($"Line {lineNo}: quantity is required.");
-        }
-
-        if (quantity <= 0)
-        {
-            throw new ValidationProblemException($"Line {lineNo}: quantity must be greater than 0.");
-        }
-
-        if (quantity > MaxQuantity || HasMoreDecimals(quantity, 3))
-        {
-            throw new ValidationProblemException($"Line {lineNo}: quantity must have at most 3 decimal places and 15 digits before the point.");
-        }
-
-        if (line.UnitPrice is not { } unitPrice)
-        {
-            throw new ValidationProblemException($"Line {lineNo}: unitPrice is required.");
-        }
-
-        if (unitPrice < 0)
-        {
-            throw new ValidationProblemException($"Line {lineNo}: unitPrice must be 0 or more.");
-        }
-
-        if (unitPrice > MaxUnitPrice || HasMoreDecimals(unitPrice, 4))
-        {
-            throw new ValidationProblemException($"Line {lineNo}: unitPrice must have at most 4 decimal places and 14 digits before the point.");
-        }
-
-        // Compare against MaxAmount / unitPrice so the multiplication itself can never overflow.
-        if (unitPrice > 0 && quantity > MaxAmount / unitPrice)
-        {
-            throw new ValidationProblemException(
-                $"Line {lineNo}: amount exceeds the maximum of {MaxAmount.ToString(CultureInfo.InvariantCulture)}.");
-        }
+        var prefix = $"Line {lineNo}";
+        var quantity = Limits.Quantity(line.Quantity, prefix);
+        var unitPrice = Limits.UnitPrice(line.UnitPrice, prefix);
+        Limits.LineAmount(quantity, unitPrice, prefix);
 
         return new NewPoLine(lineNo, itemCode, description, uom, quantity, unitPrice, glAccount, line.ReceiptRequired ?? true);
     }
-
-    private static bool HasMoreDecimals(decimal value, int places) => Math.Round(value, places) != value;
 }
