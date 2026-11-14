@@ -18,6 +18,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
     /// <summary>The dacpac copied next to the test assembly by the sqlproj ProjectReference.</summary>
     public static string DacpacPath { get; } = Path.Combine(AppContext.BaseDirectory, "Procurement.Database.dacpac");
 
+    // Msg 1807 ("Could not obtain exclusive lock on database 'model'"): CREATE DATABASE needs an exclusive
+    // lock on 'model', so concurrent publishes fail. Static, so it serializes every fixture in the process.
+    private static readonly SemaphoreSlim gate = new(1, 1);
+
     // The image is amd64 only; on Apple Silicon Docker Desktop runs it under Rosetta.
     private readonly MsSqlContainer? _container = SkipIfNoDocker.IsDockerAvailable
         ? new MsSqlBuilder(new DockerImage(Image, new Platform("linux/amd64"))).Build()
@@ -67,11 +71,25 @@ public sealed class SqlServerFixture : IAsyncLifetime
             BlockOnPossibleDataLoss = true,
         };
 
-        await Task.Run(() =>
+        // Both CreateDatabaseAsync and RedeployAsync funnel through here, so both are gated.
+        if (!await gate.WaitAsync(TimeSpan.FromMinutes(5)))
         {
-            using var package = DacPackage.Load(DacpacPath);
-            new DacServices(serverConnectionString).Deploy(package, databaseName, upgradeExisting: true, options);
-        });
+            throw new TimeoutException(
+                $"Timed out after 5 minutes waiting for another test database publish to finish before publishing '{databaseName}'.");
+        }
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var package = DacPackage.Load(DacpacPath);
+                new DacServices(serverConnectionString).Deploy(package, databaseName, upgradeExisting: true, options);
+            });
+        }
+        finally
+        {
+            gate.Release();
+        }
 
         return new SqlConnectionStringBuilder(serverConnectionString) { InitialCatalog = databaseName }.ConnectionString;
     }
