@@ -53,6 +53,9 @@ export const InvoicesStore = signalStore(
       }
     }
 
+    /** The id of the most recent loadOne; a response for any other id arrived late and is ignored. */
+    let latestId: string | null = null;
+
     return {
       /** GET /api/invoices[?status=…]. Never rejects. */
       async load(filter: InvoiceStatus | null = null): Promise<void> {
@@ -69,6 +72,7 @@ export const InvoicesStore = signalStore(
 
       /** GET /bff/invoices/{id}: the invoice, its PO (or null) and its supplier. Never rejects. */
       async loadOne(id: string): Promise<void> {
+        latestId = id;
         if (store.current()?.id !== id) {
           patchState(store, { current: null, po: null, supplier: null });
         }
@@ -76,6 +80,7 @@ export const InvoicesStore = signalStore(
         await tracked(async () => {
           try {
             const view = await firstValueFrom(api.invoice(id));
+            if (id !== latestId) return;
             patchState(store, {
               current: view.invoice,
               po: view.po,
@@ -84,6 +89,7 @@ export const InvoicesStore = signalStore(
               error: null,
             });
           } catch (e) {
+            if (id !== latestId) return;
             patchState(store, { loading: false, error: problemMessage(e) });
           }
         });

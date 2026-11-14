@@ -3,7 +3,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { InvoicesStore } from './invoices.store';
 import { CreateInvoiceRequest } from '../core/models';
-import { problem, supplierId } from '../testing/fixtures';
+import { invoiceView, problem, supplierId } from '../testing/fixtures';
+
+const invA = 'a1b2c3d4-0004-4000-8000-00000000000a';
+const invB = 'a1b2c3d4-0004-4000-8000-00000000000b';
 
 const duplicate: CreateInvoiceRequest = {
   supplierId,
@@ -44,5 +47,33 @@ describe('InvoicesStore', () => {
     expect(store.error()).toBe('Invoice INV-77812 from Bluepeak Medical Supply is already recorded');
     expect(store.saving()).toBe(false);
     expect(store.items()).toEqual([]);
+  });
+
+  it('InvoicesStore ignores a late response for a previous id', async () => {
+    const loadA = store.loadOne(invA);
+    const loadB = store.loadOne(invB);
+    const reqA = http.expectOne(`/bff/invoices/${invA}`);
+    http.expectOne(`/bff/invoices/${invB}`).flush(invoiceView({ id: invB, invoiceNumber: 'INV-B' }));
+    await loadB;
+    reqA.flush(invoiceView({ id: invA, invoiceNumber: 'INV-A' }));
+    await loadA;
+
+    expect(store.current()?.id).toBe(invB);
+    expect(store.current()?.invoiceNumber).toBe('INV-B');
+    expect(store.loading()).toBe(false);
+  });
+
+  it('InvoicesStore ignores a late error for a previous id', async () => {
+    const loadA = store.loadOne(invA);
+    const loadB = store.loadOne(invB);
+    const reqA = http.expectOne(`/bff/invoices/${invA}`);
+    http.expectOne(`/bff/invoices/${invB}`).flush(invoiceView({ id: invB }));
+    await loadB;
+    const { body, init } = problem(404, 'Not found', 'Invoice not found');
+    reqA.flush(body, init);
+    await loadA;
+
+    expect(store.current()?.id).toBe(invB);
+    expect(store.error()).toBeNull();
   });
 });

@@ -4,6 +4,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { PurchaseOrdersStore } from './purchase-orders.store';
 import { poId, problem, purchaseOrder, purchaseOrderView } from '../testing/fixtures';
 
+const poA = 'a1b2c3d4-0002-4000-8000-00000000000a';
+const poB = 'a1b2c3d4-0002-4000-8000-00000000000b';
+
 describe('PurchaseOrdersStore', () => {
   let store: InstanceType<typeof PurchaseOrdersStore>;
   let http: HttpTestingController;
@@ -65,5 +68,33 @@ describe('PurchaseOrdersStore', () => {
     expect(store.saving()).toBe(false);
     // The PO is not reloaded after a rejected receipt.
     expect(store.current()?.receipts.length).toBe(1);
+  });
+
+  it('PurchaseOrdersStore ignores a late response for a previous id', async () => {
+    const loadA = store.loadOne(poA);
+    const loadB = store.loadOne(poB);
+    const reqA = http.expectOne(`/bff/purchase-orders/${poA}`);
+    http.expectOne(`/bff/purchase-orders/${poB}`).flush(purchaseOrderView({ id: poB, number: '4500200' }));
+    await loadB;
+    reqA.flush(purchaseOrderView({ id: poA, number: '4500100' }));
+    await loadA;
+
+    expect(store.current()?.id).toBe(poB);
+    expect(store.current()?.number).toBe('4500200');
+    expect(store.loading()).toBe(false);
+  });
+
+  it('PurchaseOrdersStore ignores a late error for a previous id', async () => {
+    const loadA = store.loadOne(poA);
+    const loadB = store.loadOne(poB);
+    const reqA = http.expectOne(`/bff/purchase-orders/${poA}`);
+    http.expectOne(`/bff/purchase-orders/${poB}`).flush(purchaseOrderView({ id: poB }));
+    await loadB;
+    const { body, init } = problem(404, 'Not found', 'PO not found');
+    reqA.flush(body, init);
+    await loadA;
+
+    expect(store.current()?.id).toBe(poB);
+    expect(store.error()).toBeNull();
   });
 });

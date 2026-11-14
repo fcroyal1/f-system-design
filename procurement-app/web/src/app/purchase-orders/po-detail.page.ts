@@ -26,7 +26,7 @@ import { ReceiveForm } from './receive-form';
           <app-status-badge [status]="po.status" />
         </h1>
         @if (store.canApprove()) {
-          <button type="button" class="button" (click)="approve()" [disabled]="store.saving()">Approve</button>
+          <button type="button" class="button" (click)="approve(po.id)" [disabled]="store.saving() || po.id !== id()">Approve</button>
         }
       </header>
 
@@ -104,7 +104,7 @@ import { ReceiveForm } from './receive-form';
 
       @if (store.canReceive()) {
         <h2>Receive goods</h2>
-        <app-receive-form [lines]="po.lines" [saving]="store.saving()" (submitted)="receive($event)" />
+        <app-receive-form [lines]="po.lines" [saving]="store.saving() || po.id !== id()" (submitted)="receive(po.id, $event)" />
       }
 
       <h2>Invoices</h2>
@@ -157,11 +157,15 @@ export class PoDetailPage {
     });
   }
 
-  protected approve(): void {
-    void this.store.approve(this.id());
+  /** Acts on the PO actually displayed, and only once it is the PO the route asks for. */
+  protected approve(poId: string): void {
+    if (poId !== this.id()) return;
+    void this.store.approve(poId);
   }
 
-  protected receive(request: CreateReceiptRequest): void {
-    void this.store.receive(this.id(), request);
+  /** The receipt's line numbers come from the displayed PO, so it is posted to that PO and no other. */
+  protected receive(poId: string, request: CreateReceiptRequest): void {
+    if (poId !== this.id()) return;
+    void this.store.receive(poId, request);
   }
 }

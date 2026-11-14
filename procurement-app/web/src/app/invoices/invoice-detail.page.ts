@@ -21,7 +21,7 @@ import { InvoicesStore } from './invoices.store';
           <app-status-badge [status]="inv.status" />
         </h1>
         @if (store.isBlocked()) {
-          <button type="button" class="button" (click)="rematch()" [disabled]="store.saving()">Re-match</button>
+          <button type="button" class="button" (click)="rematch(inv.id)" [disabled]="store.saving() || inv.id !== id()">Re-match</button>
         }
       </header>
 
@@ -104,7 +104,9 @@ export class InvoiceDetailPage {
     });
   }
 
-  protected rematch(): void {
-    void this.store.rematch(this.id());
+  /** Acts on the invoice actually displayed, and only once it is the invoice the route asks for. */
+  protected rematch(invoiceId: string): void {
+    if (invoiceId !== this.id()) return;
+    void this.store.rematch(invoiceId);
   }
 }

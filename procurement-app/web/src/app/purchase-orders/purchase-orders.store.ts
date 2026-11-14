@@ -64,8 +64,12 @@ export const PurchaseOrdersStore = signalStore(
       }
     }
 
+    /** The id of the most recent loadOne; a response for any other id arrived late and is ignored. */
+    let latestId: string | null = null;
+
     /** GET /bff/purchase-orders/{id}. Never rejects: a failure sets `error`. */
     async function loadOne(id: string): Promise<void> {
+      latestId = id;
       if (store.current()?.id !== id) {
         // A different PO: drop the previous one so its lines and notices are never shown under this id.
         patchState(store, { current: null, supplier: null, notices: [] });
@@ -74,8 +78,10 @@ export const PurchaseOrdersStore = signalStore(
       await tracked(async () => {
         try {
           const view = await firstValueFrom(api.purchaseOrder(id));
+          if (id !== latestId) return;
           patchState(store, { current: view.po, supplier: view.supplier, loading: false, error: null });
         } catch (e) {
+          if (id !== latestId) return;
           patchState(store, { loading: false, error: problemMessage(e) });
         }
       });
