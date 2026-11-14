@@ -34,7 +34,9 @@ public sealed class ApiClient(HttpClient http)
         HttpResponseMessage response;
         try
         {
-            response = await http.GetAsync(relativePath, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            // ResponseContentRead (the default) buffers the whole body inside GetAsync, so HttpClient.Timeout
+            // covers a body that stalls, and a connection dropped mid-body surfaces here as HttpRequestException.
+            response = await http.GetAsync(relativePath, HttpCompletionOption.ResponseContentRead, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
@@ -49,6 +51,7 @@ public sealed class ApiClient(HttpClient http)
         using (response)
         {
             var status = (int)response.StatusCode;
+            // Already buffered in memory, so this read cannot touch the network.
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (status >= 500)

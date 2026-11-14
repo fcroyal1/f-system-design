@@ -14,6 +14,8 @@ public sealed class BffFactory(string apiBaseUrl) : WebApplicationFactory<Progra
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("Api:BaseUrl", apiBaseUrl);
+        // Short, so the stalled-body test finishes quickly. FakeApi answers everything else in milliseconds.
+        builder.UseSetting("Api:TimeoutSeconds", "1");
     }
 }
 
@@ -166,5 +168,54 @@ public sealed class BffTests(BffFixture fixture) : IClassFixture<BffFixture>
         Assert.Equal(
             FakeApi.Problem(404, "Not Found", "Nothing was found at /api/nope.", "/api/nope"),
             await api.Content.ReadAsStringAsync(Ct));
+    }
+
+    private async Task Assert502Problem(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await ReadJson(response);
+        Assert.Equal("The procurement API is unavailable", (string?)problem["title"]);
+        Assert.Equal(502, (int)problem["status"]!);
+    }
+
+    [Fact]
+    public async Task Invoice_Api5xx_Returns502Problem()
+    {
+        var response = await Client().GetAsync($"/bff/invoices/{FakeApi.Invoice503Id}", Ct);
+
+        await Assert502Problem(response);
+    }
+
+    [Fact]
+    public async Task Invoice_ApiBodyStalls_Returns502Problem()
+    {
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await Client().GetAsync($"/bff/invoices/{FakeApi.InvoiceStallId}", Ct);
+
+        await Assert502Problem(response);
+        // Api:TimeoutSeconds is 1 in BffFactory; FakeApi would otherwise stall for 30 s.
+        Assert.True(started.Elapsed < TimeSpan.FromSeconds(10), $"took {started.Elapsed}");
+    }
+
+    [Fact]
+    public async Task Invoice_ApiBodyCutOff_Returns502Problem()
+    {
+        var response = await Client().GetAsync($"/bff/invoices/{FakeApi.InvoiceCutOffId}", Ct);
+
+        await Assert502Problem(response);
+    }
+
+    [Fact]
+    public async Task Invoice_Api400_PassesThrough()
+    {
+        var response = await Client().GetAsync($"/bff/invoices/{FakeApi.Invoice400Id}", Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            FakeApi.Problem(400, "Bad Request", FakeApi.Invoice400Detail, $"/api/invoices/{FakeApi.Invoice400Id}"),
+            await response.Content.ReadAsStringAsync(Ct));
     }
 }

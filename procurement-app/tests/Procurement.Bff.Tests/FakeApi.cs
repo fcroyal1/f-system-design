@@ -23,6 +23,13 @@ public sealed class FakeApi : IAsyncDisposable
     public static readonly Guid PoId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid InvoiceId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
+    // Invoice ids that make FakeApi misbehave in a specific way.
+    public static readonly Guid Invoice503Id = Guid.Parse("50300000-0000-0000-0000-000000000000");
+    public static readonly Guid Invoice400Id = Guid.Parse("40000000-0000-0000-0000-000000000000");
+    public static readonly Guid InvoiceStallId = Guid.Parse("57a11000-0000-0000-0000-000000000000");
+    public static readonly Guid InvoiceCutOffId = Guid.Parse("c0700000-0000-0000-0000-000000000000");
+    public const string Invoice400Detail = "status must be Matched or Blocked.";
+
     private readonly WebApplication _app;
 
     public ConcurrentQueue<ReceivedRequest> Received { get; } = new();
@@ -63,8 +70,52 @@ public sealed class FakeApi : IAsyncDisposable
             return Results.Text(new JsonArray(list).ToJsonString(), "application/json");
         });
 
-        app.MapGet("/api/invoices/{id:guid}", (Guid id, HttpContext ctx) =>
-            id == InvoiceId ? Results.Text(InvoiceDetail, "application/json") : NotFound(ctx, $"Invoice {id} was not found."));
+        app.MapGet("/api/invoices/{id:guid}", async (Guid id, HttpContext ctx) =>
+        {
+            if (id == InvoiceId)
+            {
+                return Results.Text(InvoiceDetail, "application/json");
+            }
+
+            if (id == Invoice503Id)
+            {
+                return Results.Text(Problem(503, "Service Unavailable", "The database is unavailable.", ctx.Request.Path),
+                    "application/problem+json", statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            if (id == Invoice400Id)
+            {
+                return Results.Text(Problem(400, "Bad Request", Invoice400Detail, ctx.Request.Path),
+                    "application/problem+json", statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            if (id == InvoiceStallId || id == InvoiceCutOffId)
+            {
+                // Headers and the start of a body go out, then the body either stalls or the connection drops.
+                ctx.Response.StatusCode = StatusCodes.Status200OK;
+                ctx.Response.ContentType = "application/json";
+                ctx.Response.ContentLength = 4096;
+                await ctx.Response.Body.WriteAsync("{\"id\":\""u8.ToArray(), ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+
+                if (id == InvoiceStallId)
+                {
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(30), ctx.RequestAborted);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // The BFF gave up, which is what the test expects.
+                    }
+                }
+
+                ctx.Abort();
+                return Results.Empty;
+            }
+
+            return NotFound(ctx, $"Invoice {id} was not found.");
+        });
 
         app.MapGet("/api/purchase-orders/{id:guid}", (Guid id, HttpContext ctx) =>
             id == PoId ? Results.Text(PurchaseOrderDetail, "application/json") : NotFound(ctx, $"Purchase order {id} was not found."));
