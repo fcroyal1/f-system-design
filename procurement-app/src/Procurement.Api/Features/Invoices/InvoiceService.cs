@@ -175,11 +175,7 @@ public sealed class InvoiceService(Db db, InvoiceStore store, AuditLog audit)
         return (invoice, po);
     }
 
-    private static string AuditDetail(string invoiceNumber, string outcome)
-    {
-        var detail = $"Invoice {invoiceNumber}: {outcome}";
-        return detail.Length <= 400 ? detail : detail[..400];
-    }
+    private static string AuditDetail(string invoiceNumber, string outcome) => $"Invoice {invoiceNumber}: {outcome}";
 
     private static ConflictProblemException Duplicate(string existingNumber, string supplierName) =>
         new($"Invoice {existingNumber} from {supplierName} is already recorded");

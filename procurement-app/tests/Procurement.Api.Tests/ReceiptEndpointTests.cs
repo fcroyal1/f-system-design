@@ -90,6 +90,45 @@ public sealed class ReceiptEndpointTests(ApiFactory api) : IClassFixture<ApiFact
     }
 
     [Fact]
+    public async Task Receipt_ManyLines_AuditDetailTruncated()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        const int lineCount = 30;
+
+        var poResponse = await client.PostJsonAsync("/api/purchase-orders", new
+        {
+            supplierId = Bluepeak,
+            requesterName = "Harborview Clinics – Supply room",
+            costCenterCode = "CC-200",
+            currency = "USD",
+            poDate = "2026-11-01",
+            lines = Enumerable.Range(1, lineCount).Select(n => new
+            {
+                itemCode = $"ITEM-{n}", description = "Item", uom = "EA", quantity = 1000.125m, unitPrice = 1m,
+                glAccount = "6110", receiptRequired = true,
+            }).ToArray(),
+        });
+        await poResponse.AssertStatusAsync(HttpStatusCode.Created);
+        var poId = (await poResponse.JsonAsync()).GetProperty("id").GetGuid();
+        await (await client.PostJsonAsync($"/api/purchase-orders/{poId}/approve")).AssertStatusAsync(HttpStatusCode.OK);
+
+        var response = await client.PostJsonAsync($"/api/purchase-orders/{poId}/receipts", new
+        {
+            receivedBy = "Harborview Clinics – Supply room",
+            lines = Enumerable.Range(1, lineCount).Select(n => new { poLineNo = n, quantity = 1000.125m }).ToArray(),
+        });
+
+        await response.AssertStatusAsync(HttpStatusCode.Created);
+        var grId = (await response.JsonAsync()).GetProperty("id").GetGuid();
+        await using var db = await api.OpenDbAsync();
+        var detail = await db.QuerySingleAsync<string>(
+            "SELECT detail FROM dbo.audit_event WHERE entity_id = @grId AND action = 'GoodsReceived';", new { grId });
+        Assert.True(detail.Length <= 400, $"detail is {detail.Length} characters");
+        Assert.StartsWith("GR ", detail);
+    }
+
+    [Fact]
     public async Task Receipt_CumulativeOverReceipt_Returns422()
     {
         SkipIfNoDocker.Check();
