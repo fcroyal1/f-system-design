@@ -39,6 +39,15 @@ sqlpackage (schema plus demo seed), then exits → `api` starts → `bff` starts
 
 Stop with `Ctrl+C`, then `docker compose down` (add `-v` to delete the database volume and start fresh).
 
+### Demo data
+
+The database seed holds the guide example plus 30 fictional suppliers across all 11 spend categories (3 of
+them blocked). With `COMPOSE_PROFILES=demo` in `.env` (the default in `.env.example`), the one-off
+`demo-seed` service then loads about 8 months of activity: roughly 75 purchase orders with approvals,
+receipts and invoices, a share of them blocked on price, quantity or a blocked supplier. It goes through
+the API ([`tools/seed-demo.py`](tools/seed-demo.py)), so the real match engine and approval routing decide
+every outcome, and it runs only once per database. Remove the `COMPOSE_PROFILES` line for the bare guide data.
+
 **Apple Silicon:** the SQL Server image is amd64-only, so it runs under Rosetta emulation
 (`platform: linux/amd64` in compose). It works, but the first start is slow: allow a minute or two
 before the healthcheck passes. Make sure "Use Rosetta for x86_64/amd64 emulation" is on in Docker Desktop.
@@ -48,14 +57,16 @@ before the healthcheck passes. Make sure "Use Rosetta for x86_64/amd64 emulation
 The seed contains the worked example: Bluepeak Medical Supply's invoice **INV-77812** against
 **PO 4500123** bills 100 boxes of nitrile gloves, but only 98 have been received.
 
-1. The dashboard shows 1 open exception: INV-77812, *Blocked*, reason
+1. Open *Invoices* and find INV-77812 (with only the guide data, it is the dashboard's single open
+   exception): *Blocked*, reason
    `Quantity: billed 2 more than received (line 1)`. Click it to see every match check.
 2. Open PO **4500123** (Purchase orders). Under *Receive goods*, enter your name in *Received by*,
    `2` for line 1, and press *Record receipt*.
 3. The receipt re-matches every Blocked invoice on the PO: INV-77812 is now **Matched** and the
-   dashboard shows 0 open exceptions.
+   dashboard's open exceptions drop by one.
 
-`tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below; it resets the database).
+`tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below; it resets the database
+and leaves out the demo activity, so it starts from the guide data only).
 
 ## API additions
 
@@ -93,7 +104,7 @@ bash tools/smoke.sh                               # prints SMOKE PASS
 | api    | `src/Procurement.Api`        | Minimal API + Dapper. Validation, transactions, audit trail, ProblemDetails errors. |
 | bff    | `src/Procurement.Bff`        | Serves the Angular app, forwards `/api/*` (YARP), composes `/bff/*` screen views. No business rules, no SQL. |
 | ui     | `web`                        | Angular 22 app with NgRx Signals stores. |
-| infra  | `docker`, `docker-compose.yml`, `tools` | Dockerfiles, compose stack, smoke test. |
+| infra  | `docker`, `docker-compose.yml`, `tools` | Dockerfiles, compose stack, smoke test, demo activity loader. |
 | dab    | `dab`                        | Data API builder: read-only REST + GraphQL over the tables on <http://localhost:5400>. See [`dab/README.md`](dab/README.md). |
 | tests  | `tests`                      | xUnit tests per layer; `Procurement.TestSupport` holds the SQL Server fixture. |
 

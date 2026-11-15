@@ -67,6 +67,19 @@ services:
       retries: 20
       start_period: 10s
 
+  # One-off: loads months of demo POs, receipts and invoices through the API (tools/seed-demo.py), so the
+  # analytics have data. Opt-in via the "demo" profile (COMPOSE_PROFILES=demo in .env); runs once per database.
+  demo-seed:
+    image: python:3.13-alpine
+    profiles: ["demo"]
+    command: ["python", "-I", "/seed/seed-demo.py", "http://api:8080"]
+    volumes:
+      - ./tools/seed-demo.py:/seed/seed-demo.py:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
   # Data API builder: read-only REST + GraphQL over the procurement tables (see dab/README.md).
   dab:
     image: mcr.microsoft.com/azure-databases/data-api-builder:2.1.5

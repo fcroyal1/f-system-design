@@ -19,7 +19,7 @@ fail() {
 
 cleanup() {
     echo "--- tearing down (docker compose down -v)"
-    docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+    docker compose --profile demo down -v --remove-orphans >/dev/null 2>&1 || true
 }
 
 # json <expression> : reads JSON on stdin, prints the value. The expression is a jq filter;
@@ -67,8 +67,12 @@ expect() { # expect <label> <actual> <expected>
 
 trap cleanup EXIT
 
+# The assertions below are about the guide's seed data only, so leave out the "demo" profile (the demo-seed
+# activity loader) even when .env turns it on. A variable set in the shell wins over .env.
+export COMPOSE_PROFILES=
+
 echo "--- resetting the stack: docker compose down -v (deletes the local procurement database volume)"
-docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+docker compose --profile demo down -v --remove-orphans >/dev/null 2>&1 || true
 
 echo "--- docker compose up -d --build --wait"
 docker compose up -d --build --wait || fail "docker compose up did not reach a healthy state"
