@@ -54,18 +54,21 @@ import { MatchCheck } from '../core/models';
     }
     .message {
       display: block;
-      font-size: 0.85rem;
-      color: #475569;
+      font-size: 0.8125rem;
+      color: var(--ink-2, #48525e);
     }
     .row-pass .outcome {
-      color: #18663b;
+      color: var(--success, #107c41);
     }
-    .row-fail {
-      background: #fdecec;
+    .row-fail td {
+      background: var(--danger-soft, #fdeeed);
+    }
+    .row-fail td:first-child {
+      box-shadow: inset 3px 0 0 var(--danger, #b42318);
     }
     .row-fail .outcome,
     .row-fail .message {
-      color: #a61b1b;
+      color: var(--danger, #b42318);
     }
   `,
 })

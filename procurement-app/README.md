@@ -68,6 +68,18 @@ The seed contains the worked example: Bluepeak Medical Supply's invoice **INV-77
 `tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below; it resets the database
 and leaves out the demo activity, so it starts from the guide data only).
 
+## Screens
+
+| Screen | What it is for |
+|---|---|
+| Dashboard | KPIs and the newest blocked invoices that need attention. |
+| Analytics | Committed spend by category and supplier, monthly activity, invoice status and block reasons, payables by due date, approvals by role, the supplier base. Plain bars, every value printed. |
+| Suppliers | Search and filter; open a supplier to edit it. Every edit is written to its history; a bank-account change is recorded separately and shown as a warning. The code cannot change. |
+| Purchase orders / Invoices | Create, approve, receive, match and re-match. |
+| Help & FAQ | How matching, tolerances, approvals and supplier controls work, written from the app's rules. |
+
+A light / dark switch sits in the top bar (it follows the system setting until you choose).
+
 ## API additions
 
 | Endpoint | Purpose |

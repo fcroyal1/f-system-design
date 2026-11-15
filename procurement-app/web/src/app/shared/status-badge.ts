@@ -17,19 +17,28 @@ const TONES: Record<string, BadgeTone> = {
   template: `<span [class]="'badge badge-' + tone()">{{ status() }}</span>`,
   styles: `
     .badge {
-      display: inline-block;
-      padding: 0.1rem 0.55rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.125rem 0.6rem 0.125rem 0.5rem;
       border-radius: 999px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
-      line-height: 1.4;
+      line-height: 1.5;
       white-space: nowrap;
-      border: 1px solid transparent;
+      vertical-align: middle;
     }
-    .badge-danger { background: #fdecec; color: #a61b1b; border-color: #f3b4b4; }
-    .badge-success { background: #e8f6ee; color: #18663b; border-color: #a9dcbe; }
-    .badge-neutral { background: #eef2f7; color: #334155; border-color: #cbd5e1; }
-    .badge-muted { background: #f4f4f5; color: #6b7280; border-color: #e4e4e7; }
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .badge-danger { background: var(--danger-soft, #fdeeed); color: var(--danger, #b42318); }
+    .badge-success { background: var(--success-soft, #e7f4ec); color: var(--success, #107c41); }
+    .badge-neutral { background: var(--accent-soft, #e8f1fb); color: var(--accent, #0b5cad); }
+    .badge-muted { background: var(--surface-sunken, #eef0f3); color: var(--ink-3, #6b7582); }
   `,
 })
 export class StatusBadge {

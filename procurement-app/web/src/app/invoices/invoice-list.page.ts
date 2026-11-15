@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { InvoiceStatus } from '../core/models';
 import { ErrorBanner } from '../shared/error-banner';
 import { StatusBadge } from '../shared/status-badge';
+import { SupplierLogo } from '../shared/supplier-logo';
 import { InvoicesStore } from './invoices.store';
 
 @Component({
   selector: 'app-invoice-list-page',
-  imports: [DecimalPipe, RouterLink, ErrorBanner, StatusBadge],
+  imports: [DecimalPipe, RouterLink, ErrorBanner, StatusBadge, SupplierLogo],
   template: `
     <header class="page-header">
       <h1>Invoices</h1>
@@ -50,7 +51,7 @@ import { InvoicesStore } from './invoices.store';
           @for (i of store.items(); track i.id) {
             <tr>
               <td><a [routerLink]="['/invoices', i.id]">{{ i.invoiceNumber }}</a></td>
-              <td>{{ i.supplierName }}</td>
+              <td><span class="with-logo"><app-supplier-logo [name]="i.supplierName" [size]="28" />{{ i.supplierName }}</span></td>
               <td>
                 @if (i.poId) {
                   <a [routerLink]="['/purchase-orders', i.poId]">{{ i.poNumber }}</a>
@@ -58,8 +59,8 @@ import { InvoicesStore } from './invoices.store';
                   {{ i.poNumber ?? '—' }}
                 }
               </td>
-              <td>{{ i.invoiceDate }}</td>
-              <td>{{ i.dueDate }}</td>
+              <td class="nowrap">{{ i.invoiceDate }}</td>
+              <td class="nowrap">{{ i.dueDate }}</td>
               <td class="num">{{ i.total | number: '1.2-2' }} {{ i.currency }}</td>
               <td><app-status-badge [status]="i.status" /></td>
               <td>{{ i.blockReason ?? '—' }}</td>
