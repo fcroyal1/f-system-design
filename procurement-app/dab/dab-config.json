@@ -1,0 +1,448 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v2.1.5/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('DAB_CONNECTION_STRING')"
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api",
+      "request-body-strict": true
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/graphql",
+      "allow-introspection": true
+    },
+    "host": {
+      "mode": "development",
+      "cors": {
+        "origins": [],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "AppService"
+      }
+    }
+  },
+  "entities": {
+    "SpendCategory": {
+      "source": {
+        "object": "dbo.spend_category",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/spend-categories"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "SpendCategory",
+          "plural": "SpendCategories"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ]
+    },
+    "CostCenter": {
+      "source": {
+        "object": "dbo.cost_center",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/cost-centers"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "CostCenter",
+          "plural": "CostCenters"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ]
+    },
+    "GlAccount": {
+      "source": {
+        "object": "dbo.gl_account",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/gl-accounts"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "GlAccount",
+          "plural": "GlAccounts"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ]
+    },
+    "DoaTier": {
+      "source": {
+        "object": "dbo.doa_tier",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/doa-tiers"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "DoaTier",
+          "plural": "DoaTiers"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ]
+    },
+    "Supplier": {
+      "source": {
+        "object": "dbo.supplier",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/suppliers"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Supplier",
+          "plural": "Suppliers"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "SpendCategory"
+        },
+        "purchaseOrders": {
+          "cardinality": "many",
+          "target.entity": "PurchaseOrder"
+        },
+        "invoices": {
+          "cardinality": "many",
+          "target.entity": "Invoice"
+        }
+      }
+    },
+    "PurchaseOrder": {
+      "source": {
+        "object": "dbo.purchase_order",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/purchase-orders"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "PurchaseOrder",
+          "plural": "PurchaseOrders"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "supplier": {
+          "cardinality": "one",
+          "target.entity": "Supplier"
+        },
+        "costCenter": {
+          "cardinality": "one",
+          "target.entity": "CostCenter"
+        },
+        "lines": {
+          "cardinality": "many",
+          "target.entity": "PoLine"
+        },
+        "receipts": {
+          "cardinality": "many",
+          "target.entity": "GoodsReceipt"
+        },
+        "invoices": {
+          "cardinality": "many",
+          "target.entity": "Invoice"
+        }
+      }
+    },
+    "PoLine": {
+      "source": {
+        "object": "dbo.po_line",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/po-lines"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "PoLine",
+          "plural": "PoLines"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "purchaseOrder": {
+          "cardinality": "one",
+          "target.entity": "PurchaseOrder"
+        },
+        "glAccount": {
+          "cardinality": "one",
+          "target.entity": "GlAccount"
+        }
+      }
+    },
+    "GoodsReceipt": {
+      "source": {
+        "object": "dbo.goods_receipt",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/goods-receipts"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "GoodsReceipt",
+          "plural": "GoodsReceipts"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "purchaseOrder": {
+          "cardinality": "one",
+          "target.entity": "PurchaseOrder"
+        },
+        "lines": {
+          "cardinality": "many",
+          "target.entity": "GrLine"
+        }
+      }
+    },
+    "GrLine": {
+      "source": {
+        "object": "dbo.gr_line",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/gr-lines"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "GrLine",
+          "plural": "GrLines"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "receipt": {
+          "cardinality": "one",
+          "target.entity": "GoodsReceipt"
+        }
+      }
+    },
+    "Invoice": {
+      "source": {
+        "object": "dbo.invoice",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/invoices"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Invoice",
+          "plural": "Invoices"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "supplier": {
+          "cardinality": "one",
+          "target.entity": "Supplier"
+        },
+        "purchaseOrder": {
+          "cardinality": "one",
+          "target.entity": "PurchaseOrder"
+        },
+        "lines": {
+          "cardinality": "many",
+          "target.entity": "InvoiceLine"
+        },
+        "matchChecks": {
+          "cardinality": "many",
+          "target.entity": "MatchCheck"
+        }
+      }
+    },
+    "InvoiceLine": {
+      "source": {
+        "object": "dbo.invoice_line",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/invoice-lines"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "InvoiceLine",
+          "plural": "InvoiceLines"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "invoice": {
+          "cardinality": "one",
+          "target.entity": "Invoice"
+        }
+      }
+    },
+    "MatchCheck": {
+      "source": {
+        "object": "dbo.match_check",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/match-checks"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "MatchCheck",
+          "plural": "MatchChecks"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ],
+      "relationships": {
+        "invoice": {
+          "cardinality": "one",
+          "target.entity": "Invoice"
+        }
+      }
+    },
+    "AuditEvent": {
+      "source": {
+        "object": "dbo.audit_event",
+        "type": "table"
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/audit-events"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "AuditEvent",
+          "plural": "AuditEvents"
+        }
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            "read"
+          ]
+        }
+      ]
+    }
+  }
+}

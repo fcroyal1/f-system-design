@@ -86,6 +86,7 @@ bash tools/smoke.sh                               # prints SMOKE PASS
 | bff    | `src/Procurement.Bff`        | Serves the Angular app, forwards `/api/*` (YARP), composes `/bff/*` screen views. No business rules, no SQL. |
 | ui     | `web`                        | Angular 22 app with NgRx Signals stores. |
 | infra  | `docker`, `docker-compose.yml`, `tools` | Dockerfiles, compose stack, smoke test. |
+| dab    | `dab`                        | Data API builder: read-only REST + GraphQL over the tables on <http://localhost:5400>. See [`dab/README.md`](dab/README.md). |
 | tests  | `tests`                      | xUnit tests per layer; `Procurement.TestSupport` holds the SQL Server fixture. |
 
 ## Configuration

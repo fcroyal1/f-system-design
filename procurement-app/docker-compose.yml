@@ -67,5 +67,19 @@ services:
       retries: 20
       start_period: 10s
 
+  # Data API builder: read-only REST + GraphQL over the procurement tables (see dab/README.md).
+  dab:
+    image: mcr.microsoft.com/azure-databases/data-api-builder:2.1.5
+    platform: linux/amd64 # amd64-only image; runs under Rosetta on Apple Silicon
+    environment:
+      DAB_CONNECTION_STRING: "Server=sqlserver,1433;Database=procurement;User ID=sa;Password=${SA_PASSWORD:?Set SA_PASSWORD in .env (cp .env.example .env)};TrustServerCertificate=True"
+    volumes:
+      - ./dab/dab-config.json:/App/dab-config.json:ro
+    ports:
+      - "127.0.0.1:5400:5000" # localhost only
+    depends_on:
+      db-deploy:
+        condition: service_completed_successfully
+
 volumes:
   procurement-sqldata:
