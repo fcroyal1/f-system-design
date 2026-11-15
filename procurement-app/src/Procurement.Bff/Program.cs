@@ -48,16 +48,29 @@ builder.Services.AddHttpClient<ApiClient>(client =>
 
 var app = builder.Build();
 
+// index.html names the content-hashed bundles (main-<hash>.js), so it must be revalidated on every load or
+// browsers keep showing the previous release. The hashed bundles themselves can be cached normally.
+var spaShellOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.File.Name == "index.html")
+        {
+            ctx.Context.Response.Headers.CacheControl = "no-cache";
+        }
+    },
+};
+
 app.UseExceptionHandler();
 app.UseDefaultFiles(); // "/" serves wwwroot/index.html
-app.UseStaticFiles();
+app.UseStaticFiles(spaShellOptions);
 
 app.MapReverseProxy();
 app.MapBffEndpoints();
 
 // Angular deep links. Paths under /api and /bff are excluded here as well as being claimed by the routes above,
 // so an unknown API or BFF path is a 404 and never the SPA shell. "nonfile" keeps missing assets (*.js) as 404s.
-app.MapFallbackToFile("{*path:nonfile:regex(^(?!(api|bff)(/|$)))}", "index.html");
+app.MapFallbackToFile("{*path:nonfile:regex(^(?!(api|bff)(/|$)))}", "index.html", spaShellOptions);
 
 app.Run();
 

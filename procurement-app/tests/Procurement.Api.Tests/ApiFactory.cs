@@ -71,6 +71,9 @@ internal static class Http
     public static Task<HttpResponseMessage> PostJsonAsync(this HttpClient client, string url, object? body = null) =>
         client.PostAsJsonAsync(url, body ?? new { }, Ct);
 
+    public static Task<HttpResponseMessage> PutJsonAsync(this HttpClient client, string url, object body) =>
+        client.PutAsJsonAsync(url, body, Ct);
+
     /// <summary>Asserts the status code, showing the response body when it differs.</summary>
     public static async Task AssertStatusAsync(this HttpResponseMessage response, System.Net.HttpStatusCode status)
     {

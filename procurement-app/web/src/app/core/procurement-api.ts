@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  Analytics,
   CreateInvoiceRequest,
   CreatePurchaseOrderRequest,
   CreateReceiptRequest,
@@ -18,6 +19,8 @@ import {
   Receipt,
   ReferenceData,
   Supplier,
+  SupplierHistoryEntry,
+  UpdateSupplierRequest,
 } from './models';
 
 /**
@@ -38,6 +41,22 @@ export class ProcurementApi {
 
   createSupplier(body: CreateSupplierRequest): Observable<Supplier> {
     return this.http.post<Supplier>('/api/suppliers', body);
+  }
+
+  supplier(id: string): Observable<Supplier> {
+    return this.http.get<Supplier>(`/api/suppliers/${encodeURIComponent(id)}`);
+  }
+
+  updateSupplier(id: string, body: UpdateSupplierRequest): Observable<Supplier> {
+    return this.http.put<Supplier>(`/api/suppliers/${encodeURIComponent(id)}`, body);
+  }
+
+  supplierHistory(id: string): Observable<SupplierHistoryEntry[]> {
+    return this.http.get<SupplierHistoryEntry[]>(`/api/suppliers/${encodeURIComponent(id)}/history`);
+  }
+
+  analytics(): Observable<Analytics> {
+    return this.http.get<Analytics>('/api/analytics');
   }
 
   reference(): Observable<ReferenceData> {

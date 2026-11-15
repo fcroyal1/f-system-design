@@ -21,11 +21,11 @@ import { Component, input, output } from '@angular/core';
       gap: 1rem;
       margin: 0 0 1rem;
       padding: 0.75rem 1rem;
-      border: 1px solid #f3b4b4;
-      border-left: 4px solid #c62828;
-      border-radius: 6px;
-      background: #fdecec;
-      color: #7f1d1d;
+      border: 1px solid var(--danger-line, #f2c4bf);
+      border-radius: var(--radius, 8px);
+      background: var(--danger-soft, #fdeeed);
+      color: var(--danger, #b42318);
+      font-weight: 500;
     }
     .link-button {
       background: none;

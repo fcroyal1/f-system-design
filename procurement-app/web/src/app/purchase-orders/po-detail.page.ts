@@ -92,7 +92,7 @@ import { ReceiveForm } from './receive-form';
             @for (r of po.receipts; track r.id) {
               <tr>
                 <td class="mono">{{ r.grNumber }}</td>
-                <td>{{ r.receivedAt | date: 'medium' }}</td>
+                <td class="nowrap">{{ r.receivedAt | date: 'medium' }}</td>
                 <td>{{ r.receivedBy }}</td>
                 <td>{{ r.packingSlip ?? '—' }}</td>
                 <td class="num">{{ r.quantityReceived | number: '1.0-3' }}</td>
@@ -126,8 +126,8 @@ import { ReceiveForm } from './receive-form';
             @for (i of po.invoices; track i.id) {
               <tr>
                 <td><a [routerLink]="['/invoices', i.id]">{{ i.invoiceNumber }}</a></td>
-                <td>{{ i.invoiceDate }}</td>
-                <td>{{ i.dueDate }}</td>
+                <td class="nowrap">{{ i.invoiceDate }}</td>
+                <td class="nowrap">{{ i.dueDate }}</td>
                 <td class="num">{{ i.total | number: '1.2-2' }} {{ i.currency }}</td>
                 <td><app-status-badge [status]="i.status" /></td>
                 <td>{{ i.blockReason ?? '—' }}</td>

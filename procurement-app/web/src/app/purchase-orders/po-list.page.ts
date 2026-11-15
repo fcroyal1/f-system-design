@@ -3,11 +3,12 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ErrorBanner } from '../shared/error-banner';
 import { StatusBadge } from '../shared/status-badge';
+import { SupplierLogo } from '../shared/supplier-logo';
 import { PurchaseOrdersStore } from './purchase-orders.store';
 
 @Component({
   selector: 'app-po-list-page',
-  imports: [DecimalPipe, RouterLink, ErrorBanner, StatusBadge],
+  imports: [DecimalPipe, RouterLink, ErrorBanner, StatusBadge, SupplierLogo],
   template: `
     <header class="page-header">
       <h1>Purchase orders</h1>
@@ -38,10 +39,10 @@ import { PurchaseOrdersStore } from './purchase-orders.store';
           @for (po of store.items(); track po.id) {
             <tr>
               <td><a [routerLink]="['/purchase-orders', po.id]">{{ po.number }}</a></td>
-              <td>{{ po.supplierName }}</td>
+              <td><span class="with-logo"><app-supplier-logo [name]="po.supplierName" [size]="28" />{{ po.supplierName }}</span></td>
               <td>{{ po.requesterName }}</td>
-              <td>{{ po.costCenterCode }}</td>
-              <td>{{ po.poDate }}</td>
+              <td class="nowrap">{{ po.costCenterCode }}</td>
+              <td class="nowrap">{{ po.poDate }}</td>
               <td class="num">{{ po.total | number: '1.2-2' }} {{ po.currency }}</td>
               <td><app-status-badge [status]="po.status" /></td>
               <td>{{ po.approverRole ?? '—' }}</td>

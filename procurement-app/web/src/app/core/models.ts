@@ -47,6 +47,49 @@ export interface CreateSupplierRequest {
   bankAccount?: string | null;
 }
 
+/** PUT /api/suppliers/{id}. The code never changes. Tax ID / bank account: omit or null to keep the stored value. */
+export interface UpdateSupplierRequest {
+  legalName: string;
+  categoryCode: string;
+  paymentTermsDays: number;
+  taxId?: string | null;
+  bankAccount?: string | null;
+  isBlocked: boolean;
+}
+
+/** One audit-trail entry about a supplier (GET /api/suppliers/{id}/history), newest first. */
+export interface SupplierHistoryEntry {
+  occurredAt: string;
+  actor: string;
+  /** SupplierUpdated, SupplierBlocked, SupplierUnblocked or SupplierBankChanged. */
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  detail: string | null;
+}
+
+// ---- Analytics (GET /api/analytics) ----------------------------------------------
+
+export interface CategorySpend { code: string; name: string; amount: number; poCount: number; }
+export interface SupplierSpend { supplierId: string; code: string; name: string; amount: number; poCount: number; }
+export interface StatusTotal { status: string; count: number; amount: number; }
+export interface BlockReasonTotal { reason: string; count: number; amount: number; }
+export interface MonthTotal { month: string; poCount: number; poAmount: number; invoiceCount: number; invoiceAmount: number; }
+export interface ApprovalTotal { role: string; poCount: number; amount: number; }
+export interface AgingBucket { bucket: string; count: number; amount: number; }
+export interface SupplierCategoryCount { code: string; name: string; isPoExempt: boolean; count: number; blocked: number; }
+
+export interface Analytics {
+  spendByCategory: CategorySpend[];
+  topSuppliers: SupplierSpend[];
+  invoicesByStatus: StatusTotal[];
+  blockReasons: BlockReasonTotal[];
+  monthly: MonthTotal[];
+  approvalsByRole: ApprovalTotal[];
+  payablesAging: AgingBucket[];
+  suppliers: { total: number; blocked: number; byCategory: SupplierCategoryCount[] };
+}
+
 // ---- Reference data ----------------------------------------------------------
 
 export interface SpendCategory {

@@ -11,6 +11,28 @@ public sealed record CreateSupplierRequest(
     string? TaxId,
     string? BankAccount);
 
+/// <summary>
+/// PUT /api/suppliers/{id} body. The code never changes (other records and the seed refer to it).
+/// TaxId / BankAccount: omit or null to keep the stored value; send a new value to replace it.
+/// IsBlocked: omit or null to keep.
+/// </summary>
+public sealed record UpdateSupplierRequest(
+    string? LegalName,
+    string? CategoryCode,
+    int? PaymentTermsDays,
+    string? TaxId,
+    string? BankAccount,
+    bool? IsBlocked);
+
+/// <summary>One audit-trail entry about a supplier, newest first.</summary>
+public sealed record SupplierHistoryDto(
+    DateTime OccurredAt,
+    string Actor,
+    string Action,
+    string? FromStatus,
+    string? ToStatus,
+    string? Detail);
+
 public sealed record SupplierDto(
     Guid Id,
     string Code,

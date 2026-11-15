@@ -15,15 +15,45 @@ DECLARE @gr980     uniqueidentifier = 'a1b2c3d4-0003-4000-8000-000005000980';
 DECLARE @inv77812  uniqueidentifier = 'a1b2c3d4-0004-4000-8000-000000077812';
 DECLARE @invNl2231 uniqueidentifier = 'a1b2c3d4-0004-4000-8000-000000002231';
 
+-- The guide's two suppliers, then a wider fictional supplier base (V-11xxx) across every spend category so
+-- the supplier list and analytics have something to show. Three of them are blocked.
 MERGE dbo.supplier AS t
 USING (VALUES
-    (@bluepeak,  'V-10442', N'Bluepeak Medical Supply', 'MED-SUPPLIES', 30, '4421', '6630'),
-    (@northline, 'V-10518', N'Northline Office Co',     'OFFICE',       45, NULL,   NULL)
-) AS s (id, code, legal_name, category_code, payment_terms_days, tax_id_last4, bank_last4)
+    (@bluepeak,  'V-10442', N'Bluepeak Medical Supply', 'MED-SUPPLIES', 30, '4421', '6630', 0),
+    (@northline, 'V-10518', N'Northline Office Co',     'OFFICE',       45, NULL,   NULL,   0),
+    ('a1b2c3d4-0001-4000-8000-000000011001', 'V-11001', N'Cedarline Surgical',              'MED-SUPPLIES', 30, '8812', '2207', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011002', 'V-11002', N'Harbor Point Medical',            'MED-SUPPLIES', 45, '1934', '5521', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011003', 'V-11003', N'Kestrel Health Products',         'MED-SUPPLIES', 30, '7710', '0384', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011004', 'V-11004', N'Silverfern Pharma Distribution',  'MED-SUPPLIES', 60, '3348', '9172', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011028', 'V-11028', N'Pinecrest Mobility Aids',         'MED-SUPPLIES', 30, '6021', '4410', 1),
+    ('a1b2c3d4-0001-4000-8000-000000011005', 'V-11005', N'Brightwell Diagnostics',          'LAB',          45, '2290', '7783', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011006', 'V-11006', N'Quarry Lake Labware',             'LAB',          30, '5507', '1146', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011007', 'V-11007', N'Northstar Specimen Logistics',    'LAB',          15, NULL,   '3390', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011008', 'V-11008', N'Papermill & Co',                  'OFFICE',       30, '4436', '8805', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011009', 'V-11009', N'Inkwell Office Direct',           'OFFICE',       15, NULL,   NULL,   0),
+    ('a1b2c3d4-0001-4000-8000-000000011010', 'V-11010', N'Tidewater Stationers',            'OFFICE',       30, '9063', '2251', 1),
+    ('a1b2c3d4-0001-4000-8000-000000011011', 'V-11011', N'Copperleaf Systems',              'IT',           45, '3175', '6648', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011012', 'V-11012', N'Bytewise Hardware',               'IT',           30, '8840', '1029', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011013', 'V-11013', N'Lumen Device Partners',           'IT',           60, '2618', '7731', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011014', 'V-11014', N'Granite Ridge Maintenance',       'FACILITIES',   30, '5582', '4467', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011015', 'V-11015', N'Clearview Janitorial',            'FACILITIES',   15, NULL,   '8124', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011016', 'V-11016', N'Evergreen Grounds Care',          'FACILITIES',   30, '1407', NULL,   0),
+    ('a1b2c3d4-0001-4000-8000-000000011017', 'V-11017', N'Summit HVAC Services',            'FACILITIES',   45, '6693', '3058', 1),
+    ('a1b2c3d4-0001-4000-8000-000000011018', 'V-11018', N'Riverbend Power & Light',         'UTILITIES',    15, '0042', '9910', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011019', 'V-11019', N'Clearwater Municipal Water',      'UTILITIES',    30, NULL,   '4402', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011020', 'V-11020', N'Metro Fiber Networks',            'UTILITIES',    30, '7356', '6617', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011021', 'V-11021', N'Oakmont Property Group',          'RENT',         15, '2984', '5530', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011022', 'V-11022', N'Bayside Medical Plaza LLC',       'RENT',         15, '4119', '7206', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011023', 'V-11023', N'Harbor County Treasurer',         'TAXES',        30, NULL,   NULL,   0),
+    ('a1b2c3d4-0001-4000-8000-000000011024', 'V-11024', N'Shoreline Mutual Insurance',      'INSURANCE',    30, '8457', '3381', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011025', 'V-11025', N'Keystone Liability Partners',     'INSURANCE',    45, '1263', '9045', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011026', 'V-11026', N'Whitfield & Crane LLP',           'LEGAL',        30, '5790', '2683', 0),
+    ('a1b2c3d4-0001-4000-8000-000000011027', 'V-11027', N'Patient Refunds Clearing',        'REFUNDS',      15, NULL,   '0071', 0)
+) AS s (id, code, legal_name, category_code, payment_terms_days, tax_id_last4, bank_last4, is_blocked)
 ON t.id = s.id OR t.code = s.code
 WHEN NOT MATCHED BY TARGET THEN
     INSERT (id, code, legal_name, category_code, payment_terms_days, tax_id_last4, bank_last4, is_blocked)
-    VALUES (s.id, s.code, s.legal_name, s.category_code, s.payment_terms_days, s.tax_id_last4, s.bank_last4, 0);
+    VALUES (s.id, s.code, s.legal_name, s.category_code, s.payment_terms_days, s.tax_id_last4, s.bank_last4, s.is_blocked);
 
 MERGE dbo.purchase_order AS t
 USING (
