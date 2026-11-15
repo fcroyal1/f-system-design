@@ -57,6 +57,14 @@ The seed contains the worked example: Bluepeak Medical Supply's invoice **INV-77
 
 `tools/smoke.sh` automates exactly this walkthrough against a fresh stack (see below; it resets the database).
 
+## API additions
+
+| Endpoint | Purpose |
+|---|---|
+| `PUT /api/suppliers/{id}` | Edit a supplier. `taxId` / `bankAccount` omitted or null keep the stored value; only the last 4 characters are ever stored. |
+| `GET /api/suppliers/{id}/history` | The supplier's audit entries, newest first (`SupplierUpdated`, `SupplierBankChanged`, `SupplierBlocked`, `SupplierUnblocked`). |
+| `GET /api/analytics` | The aggregates behind the Analytics screen. Spend is the line total of every non-Draft PO. |
+
 ## Tests
 
 ```bash

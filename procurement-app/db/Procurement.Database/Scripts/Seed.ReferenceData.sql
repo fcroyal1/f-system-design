@@ -4,6 +4,9 @@ MERGE dbo.spend_category AS t
 USING (VALUES
     ('MED-SUPPLIES', N'Medical supplies', 0),
     ('OFFICE',       N'Office supplies',  0),
+    ('LAB',          N'Laboratory supplies',     0),
+    ('IT',           N'IT equipment',            0),
+    ('FACILITIES',   N'Facilities & maintenance', 0),
     ('UTILITIES',    N'Utilities',        1),
     ('RENT',         N'Rent',             1),
     ('TAXES',        N'Taxes',            1),
@@ -18,7 +21,10 @@ WHEN NOT MATCHED BY TARGET THEN
 MERGE dbo.gl_account AS t
 USING (VALUES
     ('6110', N'Medical supplies', 'Expense'),
-    ('6200', N'Office supplies',  'Expense')
+    ('6200', N'Office supplies',  'Expense'),
+    ('6120', N'Laboratory supplies',      'Expense'),
+    ('6300', N'IT equipment',             'Expense'),
+    ('6400', N'Facilities & maintenance', 'Expense')
 ) AS s (number, name, type)
 ON t.number = s.number
 WHEN NOT MATCHED BY TARGET THEN
@@ -26,7 +32,10 @@ WHEN NOT MATCHED BY TARGET THEN
 
 MERGE dbo.cost_center AS t
 USING (VALUES
-    ('CC-200', N'Clinic operations', N'Dana Ruiz')
+    ('CC-200', N'Clinic operations', N'Dana Ruiz'),
+    ('CC-100', N'Administration',    N'Priya Shah'),
+    ('CC-300', N'Laboratory',        N'Marcus Lee'),
+    ('CC-400', N'Facilities',        N'Elena Ortiz')
 ) AS s (code, name, owner_name)
 ON t.code = s.code
 WHEN NOT MATCHED BY TARGET THEN

@@ -1,5 +1,6 @@
 using Procurement.Api;
 using Procurement.Api.Data;
+using Procurement.Api.Features.Analytics;
 using Procurement.Api.Features.Invoices;
 using Procurement.Api.Features.Kpis;
 using Procurement.Api.Features.PurchaseOrders;
@@ -30,6 +31,7 @@ builder.Services.AddSingleton<ReferenceStore>();
 builder.Services.AddSingleton<SupplierStore>();
 builder.Services.AddSingleton<PurchaseOrderStore>();
 builder.Services.AddSingleton<InvoiceStore>();
+builder.Services.AddSingleton<AnalyticsStore>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<InvoiceService>();
@@ -46,6 +48,7 @@ app.MapPurchaseOrderEndpoints();
 app.MapReceiptEndpoints();
 app.MapInvoiceEndpoints();
 app.MapKpiEndpoints();
+app.MapAnalyticsEndpoints();
 
 app.Run();
 

@@ -20,6 +20,12 @@ public static class SupplierEndpoints
             return Results.Created($"/api/suppliers/{supplier.Id}", supplier);
         });
 
+        group.MapPut("/{id:guid}", (Guid id, UpdateSupplierRequest request, SupplierService service, CancellationToken cancellationToken) =>
+            service.UpdateAsync(id, request, cancellationToken));
+
+        group.MapGet("/{id:guid}/history", (Guid id, SupplierService service, CancellationToken cancellationToken) =>
+            service.HistoryAsync(id, cancellationToken));
+
         return app;
     }
 }

@@ -15,14 +15,15 @@ public sealed class SupplierEndpointTests(ApiFactory api) : IClassFixture<ApiFac
         SkipIfNoDocker.Check();
         var reference = await api.CreateClient().GetJsonAsync("/api/reference");
 
-        Assert.Equal(8, reference.GetProperty("categories").GetArrayLength());
+        Assert.Equal(11, reference.GetProperty("categories").GetArrayLength());
         Assert.Contains(reference.GetProperty("categories").EnumerateArray(),
             c => c.GetProperty("code").GetString() == "UTILITIES" && c.GetProperty("isPoExempt").GetBoolean());
         Assert.Contains(reference.GetProperty("glAccounts").EnumerateArray(),
             g => g.GetProperty("number").GetString() == "6110");
 
-        var costCenter = Assert.Single(reference.GetProperty("costCenters").EnumerateArray());
-        Assert.Equal("CC-200", costCenter.GetProperty("code").GetString());
+        Assert.Equal(
+            new[] { "CC-100", "CC-200", "CC-300", "CC-400" },
+            reference.GetProperty("costCenters").EnumerateArray().Select(c => c.GetProperty("code").GetString()).Order());
 
         var tiers = reference.GetProperty("doaTiers").EnumerateArray().ToList();
         Assert.Equal(
@@ -147,5 +148,158 @@ public sealed class SupplierEndpointTests(ApiFactory api) : IClassFixture<ApiFac
         });
 
         Assert.Equal("paymentTermsDays must be 0 or more.", await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
+
+    [Fact]
+    public async Task Supplier_Update_ChangesFieldsAndAuditsWhatChanged()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        var id = await CreateSupplierAsync(client, "V-20101");
+
+        var response = await client.PutJsonAsync($"/api/suppliers/{id}", new
+        {
+            legalName = "Edited Supplies Inc",
+            categoryCode = "OFFICE",
+            paymentTermsDays = 45,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.JsonAsync();
+        Assert.Equal("V-20101", updated.GetProperty("code").GetString());
+        Assert.Equal("Edited Supplies Inc", updated.GetProperty("legalName").GetString());
+        Assert.Equal("OFFICE", updated.GetProperty("categoryCode").GetString());
+        Assert.Equal(45, updated.GetProperty("paymentTermsDays").GetInt32());
+        // Tax ID and bank account were not sent, so they are kept.
+        Assert.Equal(Bullets + "1111", updated.GetProperty("taxIdMasked").GetString());
+        Assert.Equal(Bullets + "2222", updated.GetProperty("bankMasked").GetString());
+
+        var history = await client.GetJsonAsync($"/api/suppliers/{id}/history");
+        var change = history.EnumerateArray().First();
+        Assert.Equal("SupplierUpdated", change.GetProperty("action").GetString());
+        var detail = change.GetProperty("detail").GetString();
+        Assert.Contains("legal name", detail);
+        Assert.Contains("category", detail);
+        Assert.Contains("payment terms 30 → 45 days", detail);
+        Assert.DoesNotContain("bank", detail);
+    }
+
+    [Fact]
+    public async Task Supplier_Update_BankChange_StoresLast4AndIsFlaggedInHistory()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        var id = await CreateSupplierAsync(client, "V-20102");
+
+        var response = await client.PutJsonAsync($"/api/suppliers/{id}", new
+        {
+            legalName = "Bank Change Ltd",
+            categoryCode = "MED-SUPPLIES",
+            paymentTermsDays = 30,
+            bankAccount = "555500009876",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var raw = await response.Content.ReadAsStringAsync(Http.Ct);
+        Assert.DoesNotContain("555500009876", raw);
+        Assert.Equal(Bullets + "9876", JsonDocument.Parse(raw).RootElement.GetProperty("bankMasked").GetString());
+
+        var history = await client.GetJsonAsync($"/api/suppliers/{id}/history");
+        var change = history.EnumerateArray().First();
+        Assert.Equal("SupplierBankChanged", change.GetProperty("action").GetString());
+        Assert.Contains("•••• 2222 → •••• 9876", change.GetProperty("detail").GetString());
+
+        await using var db = await api.OpenDbAsync();
+        Assert.Equal("9876", await db.ExecuteScalarAsync<string>(
+            "SELECT bank_last4 FROM dbo.supplier WHERE id = @id;", new { id }));
+    }
+
+    [Fact]
+    public async Task Supplier_Update_Block_RecordsStatusChange()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        var id = await CreateSupplierAsync(client, "V-20103");
+
+        var response = await client.PutJsonAsync($"/api/suppliers/{id}", new
+        {
+            legalName = "Block Me Co",
+            categoryCode = "MED-SUPPLIES",
+            paymentTermsDays = 30,
+            isBlocked = true,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True((await response.JsonAsync()).GetProperty("isBlocked").GetBoolean());
+
+        var history = await client.GetJsonAsync($"/api/suppliers/{id}/history");
+        var blocked = Assert.Single(history.EnumerateArray(), e => e.GetProperty("action").GetString() == "SupplierBlocked");
+        Assert.Equal("Active", blocked.GetProperty("fromStatus").GetString());
+        Assert.Equal("Blocked", blocked.GetProperty("toStatus").GetString());
+    }
+
+    [Fact]
+    public async Task Supplier_Update_NoChanges_WritesNoHistory()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        var id = await CreateSupplierAsync(client, "V-20104");
+
+        var response = await client.PutJsonAsync($"/api/suppliers/{id}", new
+        {
+            legalName = "Supplier V-20104",
+            categoryCode = "MED-SUPPLIES",
+            paymentTermsDays = 30,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, (await client.GetJsonAsync($"/api/suppliers/{id}/history")).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Supplier_Update_UnknownId_Returns404()
+    {
+        SkipIfNoDocker.Check();
+
+        var response = await api.CreateClient().PutJsonAsync($"/api/suppliers/{Guid.NewGuid()}", new
+        {
+            legalName = "Nobody",
+            categoryCode = "OFFICE",
+            paymentTermsDays = 30,
+        });
+
+        await response.ProblemAsync(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Supplier_Update_UnknownCategory_Returns400()
+    {
+        SkipIfNoDocker.Check();
+        var client = api.CreateClient();
+        var id = await CreateSupplierAsync(client, "V-20105");
+
+        var response = await client.PutJsonAsync($"/api/suppliers/{id}", new
+        {
+            legalName = "Bad Category",
+            categoryCode = "NOPE",
+            paymentTermsDays = 30,
+        });
+
+        Assert.Contains("NOPE", await response.ProblemAsync(HttpStatusCode.BadRequest));
+    }
+
+    private static async Task<Guid> CreateSupplierAsync(HttpClient client, string code)
+    {
+        var response = await client.PostJsonAsync("/api/suppliers", new
+        {
+            code,
+            legalName = $"Supplier {code}",
+            categoryCode = "MED-SUPPLIES",
+            paymentTermsDays = 30,
+            taxId = "11-0001111",
+            bankAccount = "000022222",
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.JsonAsync()).GetProperty("id").GetGuid();
     }
 }
