@@ -150,6 +150,22 @@ public sealed class BffTests(BffFixture fixture) : IClassFixture<BffFixture>
         Assert.Contains("<title>Procurement</title>", await response.Content.ReadAsStringAsync(Ct));
     }
 
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/index.html")]
+    [InlineData("/invoices/abc")]
+    public async Task SpaShell_IsNeverServedFromCacheWithoutRevalidating(string path)
+    {
+        // index.html names the hashed bundles; a stale copy keeps users on the previous release.
+        var client = Client();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+
+        var response = await client.GetAsync(path, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoCache, $"{path} must send Cache-Control: no-cache");
+    }
+
     [Fact]
     public async Task UnknownApiPath_Returns404NotIndex()
     {
